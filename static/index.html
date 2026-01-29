@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnAPI-101 - Vulnerable API Testing Interface</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">VULNERABLE</span></h1>
+        <p>Purposefully Vulnerable API for Security Training</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html" class="active">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/api" target="_blank">API Info</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div id="auth-status" class="alert alert-warning">Not logged in</div>
+        <button id="logout-btn" class="btn btn-secondary btn-small" style="display: none;">Logout</button>
+
+        <div class="alert alert-danger">
+            <strong>Warning:</strong> This application is intentionally vulnerable.
+            Do not deploy in production or expose to the internet!
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="auth-section">Authentication</button>
+            <button class="tab" data-tab="users-section">Users</button>
+            <button class="tab" data-tab="products-section">Products</button>
+            <button class="tab" data-tab="orders-section">Orders</button>
+            <button class="tab" data-tab="admin-section">Admin</button>
+            <button class="tab" data-tab="files-section">Files/SSRF</button>
+            <button class="tab" data-tab="debug-section">Debug</button>
+        </div>
+
+        <!-- Authentication Section -->
+        <div id="auth-section" class="tab-content active">
+            <div class="grid">
+                <div class="card">
+                    <h3>Login</h3>
+                    <p class="owasp-tag owasp-api2">API2: Broken Authentication</p>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Username</label>
+                            <input type="text" id="login-username" placeholder="admin" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" placeholder="admin123" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                    <h4>Test Credentials:</h4>
+                    <ul>
+                        <li>admin / admin123 (admin role)</li>
+                        <li>john / password123 (user role)</li>
+                        <li>jane / jane2024 (user role)</li>
+                        <li>test / test (user role)</li>
+                    </ul>
+                    <pre class="response-area" id="login-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Register</h3>
+                    <p class="owasp-tag owasp-api3">API3: Mass Assignment</p>
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="reg-username">Username</label>
+                            <input type="text" id="reg-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-email">Email</label>
+                            <input type="email" id="reg-email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-password">Password</label>
+                            <input type="password" id="reg-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-role">Role (Mass Assignment!)</label>
+                            <select id="reg-role">
+                                <option value="user">user</option>
+                                <option value="admin">admin</option>
+                                <option value="moderator">moderator</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-balance">Balance (Mass Assignment!)</label>
+                            <input type="number" id="reg-balance" value="100" step="0.01">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Register</button>
+                    </form>
+                    <pre class="response-area" id="register-response"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div id="users-section" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>List All Users</h3>
+                    <p class="owasp-tag owasp-api1">API1: BOLA</p>
+                    <p class="owasp-tag owasp-api3">API3: Excessive Data Exposure</p>
+                    <p>No authentication required - exposes all users including sensitive data!</p>
+                    <button id="get-users-btn" class="btn btn-primary">Get All Users</button>
+                    <pre class="response-area" id="users-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Get User by ID</h3>
+                    <p class="owasp-tag owasp-api1">API1: BOLA</p>
+                    <div class="form-group">
+                        <label for="user-id-input">User ID</label>
+                        <input type="number" id="user-id-input" value="1">
+                    </div>
+                    <button id="get-user-btn" class="btn btn-primary">Get User</button>
+                    <pre class="response-area" id="user-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Update User (BOLA + Mass Assignment)</h3>
+                    <p class="owasp-tag owasp-api1">API1: BOLA</p>
+                    <p class="owasp-tag owasp-api3">API3: Mass Assignment</p>
+                    <form id="update-user-form">
+                        <div class="form-group">
+                            <label for="update-user-id">User ID to Update</label>
+                            <input type="number" id="update-user-id" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="update-role">New Role</label>
+                            <select id="update-role">
+                                <option value="">-- Don't change --</option>
+                                <option value="admin">admin</option>
+                                <option value="user">user</option>
+                                <option value="moderator">moderator</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="update-balance">New Balance</label>
+                            <input type="number" id="update-balance" placeholder="Leave empty to skip" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="update-password">New Password</label>
+                            <input type="text" id="update-password" placeholder="Leave empty to skip">
+                        </div>
+                        <button type="submit" class="btn btn-warning">Update User</button>
+                    </form>
+                    <pre class="response-area" id="update-user-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Search Users</h3>
+                    <p class="owasp-tag owasp-api3">API3: Search by Sensitive Fields</p>
+                    <form id="search-form">
+                        <div class="form-group">
+                            <label for="search-query">Search Query</label>
+                            <input type="text" id="search-query" placeholder="Search term">
+                        </div>
+                        <div class="form-group">
+                            <label for="search-field">Search Field</label>
+                            <select id="search-field">
+                                <option value="username">Username</option>
+                                <option value="email">Email</option>
+                                <option value="ssn">SSN (Sensitive!)</option>
+                                <option value="credit_card">Credit Card (Sensitive!)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </form>
+                    <pre class="response-area" id="search-response"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Section -->
+        <div id="products-section" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>List All Products</h3>
+                    <p class="owasp-tag owasp-api3">API3: Internal Data Exposure</p>
+                    <p>Exposes internal_cost and admin_notes!</p>
+                    <button id="get-products-btn" class="btn btn-primary">Get All Products</button>
+                    <pre class="response-area" id="products-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Coupons (Sensitive Data Exposure)</h3>
+                    <p class="owasp-tag owasp-api3">API3: Internal Data Exposure</p>
+                    <p>Exposes internal employee coupons!</p>
+                    <button onclick="VulnAPI.apiRequest('/products/coupons').then(r => VulnAPI.displayResponse('coupons-response', r))" class="btn btn-primary">Get Coupons</button>
+                    <pre class="response-area" id="coupons-response"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="orders-section" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>List All Orders</h3>
+                    <p class="owasp-tag owasp-api1">API1: BOLA</p>
+                    <p>No authentication required - view everyone's orders!</p>
+                    <button id="get-orders-btn" class="btn btn-primary">Get All Orders</button>
+                    <pre class="response-area" id="orders-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Create Order (Price Manipulation)</h3>
+                    <p class="owasp-tag owasp-api6">API6: Business Logic Abuse</p>
+                    <p class="owasp-tag owasp-api1">API1: BOLA</p>
+                    <form id="create-order-form">
+                        <div class="form-group">
+                            <label for="order-product-id">Product ID</label>
+                            <input type="number" id="order-product-id" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="order-quantity">Quantity</label>
+                            <input type="number" id="order-quantity" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="order-price">Custom Price (Price Manipulation!)</label>
+                            <input type="number" id="order-price" placeholder="Leave empty for real price" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="order-user-id">User ID (BOLA - create for others!)</label>
+                            <input type="number" id="order-user-id" placeholder="Leave empty for self">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Order</button>
+                    </form>
+                    <pre class="response-area" id="order-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Order Statistics</h3>
+                    <p class="owasp-tag owasp-api9">API9: Undocumented Endpoint</p>
+                    <button onclick="VulnAPI.apiRequest('/orders/statistics').then(r => VulnAPI.displayResponse('stats-response', r))" class="btn btn-info">Get Statistics</button>
+                    <pre class="response-area" id="stats-response"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Section -->
+        <div id="admin-section" class="tab-content">
+            <div class="grid">
+                <div class="card danger">
+                    <h3>Admin Config (No Auth Check!)</h3>
+                    <p class="owasp-tag owasp-api5">API5: BFLA</p>
+                    <p class="owasp-tag owasp-api8">API8: Security Misconfiguration</p>
+                    <p>Exposes secret keys and credentials!</p>
+                    <button id="admin-config-btn" class="btn btn-danger">Get Admin Config</button>
+                    <pre class="response-area" id="admin-response"></pre>
+                </div>
+
+                <div class="card danger">
+                    <h3>Raw SQL Query</h3>
+                    <p class="owasp-tag owasp-api5">API5: BFLA</p>
+                    <p class="owasp-tag owasp-api8">API8: SQL Injection</p>
+                    <form id="query-form">
+                        <div class="form-group">
+                            <label for="raw-query">SQL Query</label>
+                            <textarea id="raw-query" placeholder="SELECT * FROM users">SELECT * FROM users</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Execute Query</button>
+                    </form>
+                    <pre class="response-area" id="query-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Update User Role</h3>
+                    <p class="owasp-tag owasp-api5">API5: BFLA</p>
+                    <p>Any authenticated user can change anyone's role!</p>
+                    <button onclick="VulnAPI.apiRequest('/admin/users/2/role', 'PUT', {role: 'admin'}).then(r => VulnAPI.displayResponse('role-response', r))" class="btn btn-warning">Make User 2 Admin</button>
+                    <pre class="response-area" id="role-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Database Backup</h3>
+                    <p class="owasp-tag owasp-api5">API5: BFLA</p>
+                    <button onclick="VulnAPI.apiRequest('/admin/backup').then(r => VulnAPI.displayResponse('backup-response', r))" class="btn btn-warning">Download Backup</button>
+                    <pre class="response-area" id="backup-response"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Files/SSRF Section -->
+        <div id="files-section" class="tab-content">
+            <div class="grid">
+                <div class="card danger">
+                    <h3>Server-Side Request Forgery (SSRF)</h3>
+                    <p class="owasp-tag owasp-api7">API7: SSRF</p>
+                    <p>Fetch content from any URL - including internal services!</p>
+                    <form id="ssrf-form">
+                        <div class="form-group">
+                            <label for="ssrf-url">URL to Fetch</label>
+                            <input type="text" id="ssrf-url" placeholder="http://169.254.169.254/latest/meta-data/" value="http://localhost:5000/api">
+                        </div>
+                        <button type="submit" class="btn btn-danger">Fetch URL</button>
+                    </form>
+                    <p><strong>Try these:</strong></p>
+                    <ul>
+                        <li><code>http://localhost:5000/api/admin/config</code></li>
+                        <li><code>http://127.0.0.1:5000/api/debug/env</code></li>
+                        <li><code>http://169.254.169.254/latest/meta-data/</code> (AWS)</li>
+                        <li><code>file:///etc/passwd</code></li>
+                    </ul>
+                    <pre class="response-area" id="ssrf-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>File Upload</h3>
+                    <p class="owasp-tag owasp-api8">API8: Unrestricted Upload</p>
+                    <form id="upload-form">
+                        <div class="form-group">
+                            <label for="file-input">Select File (Any type allowed!)</label>
+                            <input type="file" id="file-input">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </form>
+                    <pre class="response-area" id="upload-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Path Traversal</h3>
+                    <p class="owasp-tag owasp-api8">API8: Path Traversal</p>
+                    <div class="form-group">
+                        <label for="path-input">Filename</label>
+                        <input type="text" id="path-input" placeholder="../../../etc/passwd" value="../../../etc/passwd">
+                    </div>
+                    <button onclick="VulnAPI.apiRequest('/files/read', 'POST', {filename: document.getElementById('path-input').value}).then(r => VulnAPI.displayResponse('path-response', r))" class="btn btn-danger">Read File</button>
+                    <pre class="response-area" id="path-response"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Section -->
+        <div id="debug-section" class="tab-content">
+            <div class="grid">
+                <div class="card danger">
+                    <h3>Environment Variables</h3>
+                    <p class="owasp-tag owasp-api8">API8: Security Misconfiguration</p>
+                    <button id="debug-info-btn" class="btn btn-danger">Get Environment</button>
+                    <pre class="response-area" id="debug-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>API Routes Discovery</h3>
+                    <p class="owasp-tag owasp-api9">API9: Improper Inventory</p>
+                    <button id="routes-btn" class="btn btn-info">List All Routes</button>
+                </div>
+
+                <div class="card danger">
+                    <h3>Remote Code Execution</h3>
+                    <p class="owasp-tag owasp-api8">API8: RCE</p>
+                    <form id="code-form">
+                        <div class="form-group">
+                            <label for="code-input">Python Code</label>
+                            <textarea id="code-input" placeholder="result = 2 + 2">import os; result = os.getcwd()</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Execute Code</button>
+                    </form>
+                    <pre class="response-area" id="code-response"></pre>
+                </div>
+
+                <div class="card">
+                    <h3>Hidden Endpoints</h3>
+                    <p class="owasp-tag owasp-api9">API9: Hidden Endpoints</p>
+                    <button onclick="VulnAPI.apiRequest('/debug/.hidden').then(r => VulnAPI.displayResponse('hidden-response', r))" class="btn btn-warning">Access Hidden Endpoint</button>
+                    <button onclick="VulnAPI.apiRequest('/admin/hidden/debug').then(r => VulnAPI.displayResponse('hidden-response', r))" class="btn btn-warning">Hidden Debug</button>
+                    <pre class="response-area" id="hidden-response"></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | OWASP API Top 10 Vulnerabilities</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

