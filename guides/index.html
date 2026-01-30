@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VulnAPI-101 - Vulnerability Guides</title>
+    <meta name="description" content="OWASP API Top 10 vulnerability guides for security training">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <header>
-        <h1>VulnAPI-101 <span class="warning-badge">GUIDES</span></h1>
+        <h1>VULNAPI-101 <span class="warning-badge">GUIDES</span></h1>
         <p>OWASP API Top 10 Vulnerability Reference</p>
     </header>
 
@@ -32,70 +38,70 @@
         </div>
 
         <div class="grid">
-            <a href="/guides/vulnerabilities/api1-bola.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api1-bola.html" class="card">
                 <h3><span class="owasp-tag owasp-api1">API1:2023</span></h3>
                 <h4>Broken Object Level Authorization (BOLA)</h4>
                 <p>APIs expose endpoints that handle object identifiers, creating attack surfaces for IDOR vulnerabilities.</p>
                 <span class="badge badge-danger">CRITICAL</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api2-broken-auth.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api2-broken-auth.html" class="card">
                 <h3><span class="owasp-tag owasp-api2">API2:2023</span></h3>
                 <h4>Broken Authentication</h4>
                 <p>Authentication mechanisms implemented incorrectly, allowing credential stuffing, brute force, and token theft.</p>
                 <span class="badge badge-danger">CRITICAL</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api3-property-auth.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api3-property-auth.html" class="card">
                 <h3><span class="owasp-tag owasp-api3">API3:2023</span></h3>
                 <h4>Broken Object Property Level Authorization</h4>
                 <p>Lack of proper authorization at the property level leads to data exposure and mass assignment.</p>
                 <span class="badge badge-danger">HIGH</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api4-resource-consumption.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api4-resource-consumption.html" class="card">
                 <h3><span class="owasp-tag owasp-api4">API4:2023</span></h3>
                 <h4>Unrestricted Resource Consumption</h4>
                 <p>APIs without rate limiting or resource controls vulnerable to DoS and resource exhaustion.</p>
                 <span class="badge badge-warning">MEDIUM</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api5-bfla.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api5-bfla.html" class="card">
                 <h3><span class="owasp-tag owasp-api5">API5:2023</span></h3>
                 <h4>Broken Function Level Authorization (BFLA)</h4>
                 <p>Administrative functions accessible without proper role verification.</p>
                 <span class="badge badge-danger">HIGH</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api6-business-flow.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api6-business-flow.html" class="card">
                 <h3><span class="owasp-tag owasp-api6">API6:2023</span></h3>
                 <h4>Unrestricted Access to Sensitive Business Flows</h4>
                 <p>Business logic vulnerabilities allowing abuse of workflows and automated attacks.</p>
                 <span class="badge badge-warning">MEDIUM</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api7-ssrf.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api7-ssrf.html" class="card">
                 <h3><span class="owasp-tag owasp-api7">API7:2023</span></h3>
                 <h4>Server Side Request Forgery (SSRF)</h4>
                 <p>APIs fetching remote resources without proper URL validation.</p>
                 <span class="badge badge-danger">HIGH</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api8-misconfiguration.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api8-misconfiguration.html" class="card">
                 <h3><span class="owasp-tag owasp-api8">API8:2023</span></h3>
                 <h4>Security Misconfiguration</h4>
                 <p>Debug mode, verbose errors, unnecessary features, and missing security hardening.</p>
                 <span class="badge badge-danger">CRITICAL</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api9-inventory.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api9-inventory.html" class="card">
                 <h3><span class="owasp-tag owasp-api9">API9:2023</span></h3>
                 <h4>Improper Inventory Management</h4>
                 <p>Undocumented endpoints, deprecated APIs, and lack of proper API documentation.</p>
                 <span class="badge badge-warning">MEDIUM</span>
             </a>
 
-            <a href="/guides/vulnerabilities/api10-unsafe-consumption.html" class="card" style="text-decoration: none; color: inherit;">
+            <a href="/guides/vulnerabilities/api10-unsafe-consumption.html" class="card">
                 <h3><span class="owasp-tag owasp-api10">API10:2023</span></h3>
                 <h4>Unsafe Consumption of APIs</h4>
                 <p>Trusting data from third-party APIs without proper validation.</p>
