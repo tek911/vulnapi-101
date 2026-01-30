@@ -4,7 +4,8 @@ This application contains OWASP API Top 10 vulnerabilities for educational purpo
 DO NOT DEPLOY THIS IN PRODUCTION!
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
+import os
 from flask_cors import CORS
 from app.config import Config
 from app.models import db
@@ -89,13 +90,28 @@ def create_app(config_class=Config):
 
     @app.route('/')
     def index():
-        from flask import redirect
-        return redirect('/index.html')
+        return send_from_directory(app.static_folder, 'index.html')
+
+    @app.route('/index.html')
+    def index_html():
+        return send_from_directory(app.static_folder, 'index.html')
 
     # Health check endpoint
     @app.route('/health')
     def health():
         return jsonify({'status': 'ok'}), 200
+
+    # Serve vulnerability guides
+    guides_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'guides')
+
+    @app.route('/guides/')
+    @app.route('/guides')
+    def guides_index():
+        return send_from_directory(guides_dir, 'index.html')
+
+    @app.route('/guides/<path:filename>')
+    def guides_files(filename):
+        return send_from_directory(guides_dir, filename)
 
     return app
 
