@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VulnAPI-101 - Vulnerable API Testing Interface</title>
+    <meta name="description" content="Purposefully vulnerable REST API for security training - OWASP API Top 10">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <header>
-        <h1>VulnAPI-101 <span class="warning-badge">VULNERABLE</span></h1>
+        <h1>VULNAPI-101 <span class="warning-badge">VULNERABLE</span></h1>
         <p>Purposefully Vulnerable API for Security Training</p>
     </header>
 
@@ -59,10 +65,10 @@
                     </form>
                     <h4>Test Credentials:</h4>
                     <ul>
-                        <li>admin / admin123 (admin role)</li>
-                        <li>john / password123 (user role)</li>
-                        <li>jane / jane2024 (user role)</li>
-                        <li>test / test (user role)</li>
+                        <li><code>admin / admin123</code> (admin role)</li>
+                        <li><code>john / password123</code> (user role)</li>
+                        <li><code>jane / jane2024</code> (user role)</li>
+                        <li><code>test / test</code> (user role)</li>
                     </ul>
                     <pre class="response-area" id="login-response"></pre>
                 </div>
@@ -354,6 +360,7 @@
                     <h3>API Routes Discovery</h3>
                     <p class="owasp-tag owasp-api9">API9: Improper Inventory</p>
                     <button id="routes-btn" class="btn btn-info">List All Routes</button>
+                    <pre class="response-area" id="routes-response"></pre>
                 </div>
 
                 <div class="card danger">
@@ -381,7 +388,7 @@
     </main>
 
     <footer>
-        <p>VulnAPI-101 - Educational Purposes Only | OWASP API Top 10 Vulnerabilities</p>
+        <p>VulnAPI-101 - Educational Purposes Only | <a href="https://owasp.org/API-Security/">OWASP API Security Project</a></p>
     </footer>
 
     <script src="/static/js/app.js"></script>
