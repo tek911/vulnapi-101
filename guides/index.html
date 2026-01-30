@@ -35,6 +35,25 @@
             <div class="alert alert-danger">
                 <strong>Educational Use Only!</strong> These vulnerabilities are intentionally included for learning purposes. Never implement these patterns in production code!
             </div>
+
+            <h2>Postman Collections</h2>
+            <p>Import these collections into Postman to quickly test the API. The attack collection demonstrates vulnerabilities, while the normal collection shows legitimate API usage.</p>
+
+            <div class="grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 2rem;">
+                <a href="/guides/vulnapi-attacks.postman_collection.json" class="card" download>
+                    <h3>Attack Collection</h3>
+                    <h4>Vulnerability Demonstrations</h4>
+                    <p>70+ requests showcasing OWASP API Top 10 vulnerabilities including BOLA, BFLA, SSRF, RCE, and more.</p>
+                    <span class="badge badge-danger">ATTACKS</span>
+                </a>
+
+                <a href="/guides/vulnapi-normal.postman_collection.json" class="card" download>
+                    <h3>Normal Usage Collection</h3>
+                    <h4>Legitimate API Calls</h4>
+                    <p>50+ requests demonstrating proper API usage: authentication, CRUD operations, orders, and admin functions.</p>
+                    <span class="badge badge-success">SAFE</span>
+                </a>
+            </div>
         </div>
 
         <div class="grid">

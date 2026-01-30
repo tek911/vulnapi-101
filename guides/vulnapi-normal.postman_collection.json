@@ -1,0 +1,1177 @@
+{
+	"info": {
+		"_postman_id": "vulnapi-101-normal",
+		"name": "VulnAPI-101 Normal Usage Collection",
+		"description": "This collection demonstrates legitimate, non-malicious API calls to VulnAPI-101. Use this to understand the intended functionality of the API before exploring vulnerabilities.\n\n## Setup\n1. Start the VulnAPI-101 server\n2. Set the `base_url` variable (default: http://localhost:5000)\n3. Run the \"Register\" or \"Login\" request first to get a token\n\n## Test Credentials\n- admin / admin123 (admin)\n- john / password123 (user)\n- jane / jane2024 (user)\n- test / test (user)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Info",
+			"description": "Basic health checks and API information",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check if the API is running and healthy"
+					},
+					"response": []
+				},
+				{
+					"name": "API Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api",
+							"host": ["{{base_url}}"],
+							"path": ["api"]
+						},
+						"description": "Get API version and basic information"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"description": "User authentication workflows",
+			"item": [
+				{
+					"name": "Register New User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.user) {",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"newuser\",\n    \"email\": \"newuser@example.com\",\n    \"password\": \"securePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register a new user account with username, email, and password"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"john\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with username and password to receive a JWT token"
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john@vulnapi.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "forgot-password"]
+						},
+						"description": "Request a password reset token for an email address"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john@vulnapi.com\",\n    \"reset_token\": \"123456\",\n    \"new_password\": \"newSecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/reset-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "reset-password"]
+						},
+						"description": "Reset password using the token received via email"
+					},
+					"response": []
+				},
+				{
+					"name": "Get API Key",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"john\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/api-key",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "api-key"]
+						},
+						"description": "Generate an API key for programmatic access"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"description": "User profile operations",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me"]
+						},
+						"description": "Get the currently authenticated user's profile"
+					},
+					"response": []
+				},
+				{
+					"name": "Update My Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newemail@example.com\",\n    \"password\": \"newPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "{{user_id}}"]
+						},
+						"description": "Update the current user's profile (email, password)"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Balance to Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"add\",\n    \"amount\": 50.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me/balance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me", "balance"]
+						},
+						"description": "Add funds to your account balance"
+					},
+					"response": []
+				},
+				{
+					"name": "Transfer Balance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"transfer\",\n    \"amount\": 25.00,\n    \"target_user_id\": 3\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me/balance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me", "balance"]
+						},
+						"description": "Transfer funds to another user"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/search?q=john&field=username",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": "john"
+								},
+								{
+									"key": "field",
+									"value": "username"
+								}
+							]
+						},
+						"description": "Search for users by username"
+					},
+					"response": []
+				},
+				{
+					"name": "List All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"]
+						},
+						"description": "Get a list of all users"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "{{user_id}}"]
+						},
+						"description": "Get a specific user's public profile"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User's Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "{{user_id}}", "orders"]
+						},
+						"description": "Get the order history for a user"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Products",
+			"description": "Product catalog operations",
+			"item": [
+				{
+					"name": "List All Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						},
+						"description": "Get the full product catalog"
+					},
+					"response": []
+				},
+				{
+					"name": "List Products with Limit",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products?limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get products with a limit on results"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "1"]
+						},
+						"description": "Get details for a specific product"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"New Product\",\n    \"price\": 29.99,\n    \"description\": \"A great new product\",\n    \"stock\": 100,\n    \"category\": \"Electronics\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products"]
+						},
+						"description": "Create a new product in the catalog"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 24.99,\n    \"description\": \"Updated description\",\n    \"stock\": 150\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "1"]
+						},
+						"description": "Update an existing product"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/products/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "1"]
+						},
+						"description": "Delete a product from the catalog"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product Comments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/1/comments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "1", "comments"]
+						},
+						"description": "Get all comments/reviews for a product"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Product Comment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"Great product! Highly recommend.\",\n    \"rating\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/1/comments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "1", "comments"]
+						},
+						"description": "Add a comment/review to a product"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/export",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "export"]
+						},
+						"description": "Export all products data"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Coupons",
+			"description": "Coupon and discount operations",
+			"item": [
+				{
+					"name": "Validate Coupon Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"SAVE20\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/coupons/validate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "coupons", "validate"]
+						},
+						"description": "Check if a coupon code is valid"
+					},
+					"response": []
+				},
+				{
+					"name": "Apply Coupon to Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"SAVE20\",\n    \"order_total\": 100.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/coupons/apply",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "coupons", "apply"]
+						},
+						"description": "Apply a coupon code to calculate discount"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Orders",
+			"description": "Order management operations",
+			"item": [
+				{
+					"name": "List All Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders"]
+						},
+						"description": "Get a list of all orders"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1"]
+						},
+						"description": "Get details for a specific order"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_id\": 1,\n    \"quantity\": 2,\n    \"shipping_address\": \"123 Main St, City, State 12345\",\n    \"payment_method\": \"credit_card\",\n    \"card_last_four\": \"4242\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders"]
+						},
+						"description": "Create a new order for a product"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"shipping_address\": \"456 New St, City, State 67890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1"]
+						},
+						"description": "Update an existing order's details"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Order Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"processing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/1/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1", "status"]
+						},
+						"description": "Update an order's status"
+					},
+					"response": []
+				},
+				{
+					"name": "Request Refund",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1/refund",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1", "refund"]
+						},
+						"description": "Request a refund for an order"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "1"]
+						},
+						"description": "Cancel/delete an order"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"description": "Administrative operations (requires admin role)",
+			"item": [
+				{
+					"name": "List All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users"]
+						},
+						"description": "Admin view of all users"
+					},
+					"response": []
+				},
+				{
+					"name": "Change User Role",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"role\": \"moderator\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/users/3/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users", "3", "role"]
+						},
+						"description": "Change a user's role (user, moderator, admin)"
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/users/3/deactivate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "users", "3", "deactivate"]
+						},
+						"description": "Deactivate a user account"
+					},
+					"response": []
+				},
+				{
+					"name": "View Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/logs",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "logs"]
+						},
+						"description": "View system audit logs"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Coupon",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"NEWCOUPON10\",\n    \"discount_percent\": 10,\n    \"max_uses\": 100,\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/coupons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "coupons"]
+						},
+						"description": "Create a new coupon code"
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Update Order Status",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_ids\": [1, 2, 3],\n    \"status\": \"shipped\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/bulk-status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "orders", "bulk-status"]
+						},
+						"description": "Update status for multiple orders at once"
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Update Product Prices",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"updates\": [\n        {\"product_id\": 1, \"price\": 19.99},\n        {\"product_id\": 2, \"price\": 29.99}\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/bulk-price-update",
+							"host": ["{{base_url}}"],
+							"path": ["api", "products", "bulk-price-update"]
+						},
+						"description": "Update prices for multiple products at once"
+					},
+					"response": []
+				},
+				{
+					"name": "Database Backup",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/backup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "backup"]
+						},
+						"description": "Create a backup of the database"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Files",
+			"description": "File operations",
+			"item": [
+				{
+					"name": "Upload File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": ""
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/upload",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "upload"]
+						},
+						"description": "Upload a file to the server"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload File (Safe)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": ""
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/upload-safe",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "upload-safe"]
+						},
+						"description": "Upload a file with extension validation"
+					},
+					"response": []
+				},
+				{
+					"name": "Download File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/files/download/example.txt",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "download", "example.txt"]
+						},
+						"description": "Download a file from the server"
+					},
+					"response": []
+				},
+				{
+					"name": "Read File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"filename\": \"example.txt\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/read",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "read"]
+						},
+						"description": "Read content of a file"
+					},
+					"response": []
+				},
+				{
+					"name": "Fetch External URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"https://api.example.com/data.json\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/fetch",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "fetch"]
+						},
+						"description": "Fetch content from an external URL"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Webhook URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"webhook_url\": \"https://webhook.example.com/receive\",\n    \"event\": \"order_completed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/webhook",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "webhook"]
+						},
+						"description": "Configure a webhook URL for events"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Avatar URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"https://example.com/avatar.png\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/avatar",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "avatar"]
+						},
+						"description": "Set user avatar from URL"
+					},
+					"response": []
+				},
+				{
+					"name": "Import External Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"api_url\": \"https://api.example.com/products.json\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/files/import-data",
+							"host": ["{{base_url}}"],
+							"path": ["api", "files", "import-data"]
+						},
+						"description": "Import data from an external API"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
