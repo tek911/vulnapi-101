@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VulnAPI-101 Critical RCE Proof of Concept</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0b1020; --panel: #121a2e; --line: #2a395c; --text: #e8eefc; --muted: #aab8d4; --critical: #ff647c; --accent: #6ee7c7; --code: #09101e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top right, #18264b 0, var(--bg) 42rem); color: var(--text); font: 16px/1.6 system-ui, sans-serif; }
+    main { width: min(920px, calc(100% - 32px)); margin: 48px auto 80px; }
+    header, section { background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 28px; margin: 18px 0; box-shadow: 0 18px 55px #0005; }
+    .badge { display: inline-block; color: #21030a; background: var(--critical); padding: 4px 10px; border-radius: 999px; font-weight: 800; letter-spacing: .08em; font-size: 12px; }
+    h1 { font-size: clamp(30px, 5vw, 52px); line-height: 1.05; margin: 18px 0 12px; }
+    h2 { margin: 0 0 12px; font-size: 23px; }
+    p { margin: 10px 0; }
+    .lead { color: var(--muted); font-size: 19px; max-width: 70ch; }
+    .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+    .flow div { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #0d1528; }
+    .flow strong { display: block; color: var(--accent); }
+    pre { margin: 14px 0 0; padding: 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--code); color: #d9e5ff; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .result { border-left: 4px solid var(--accent); }
+    .safety { border-left: 4px solid #f9c74f; }
+    a { color: var(--accent); }
+    ol { padding-left: 22px; }
+    @media (max-width: 700px) { .flow { grid-template-columns: 1fr; } header, section { padding: 21px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="badge">CRITICAL</span>
+    <h1>Unauthenticated Python execution</h1>
+    <p class="lead">VulnAPI-101 1.0.0 accepts Python source in a public HTTP request, passes it to <code>exec()</code>, and returns the value produced inside the server process.</p>
+    <div class="flow">
+      <div><strong>1. Entry point</strong><code>POST /api/debug/execute</code></div>
+      <div><strong>2. Missing control</strong>No authentication or authorization check</div>
+      <div><strong>3. Security impact</strong>Python runs with the Flask process's privileges</div>
+    </div>
+  </header>
+
+  <section>
+    <h2>The decisive source</h2>
+    <p><code>app/routes/debug.py</code> reads the attacker-controlled <code>code</code> field and passes it directly to <code>exec()</code>. <code>app/__init__.py</code> registers the debug blueprint for every application instance.</p>
+    <pre><code>data = request.get_json()
+code = data.get('code')
+
+local_vars = {}
+exec(code, {'__builtins__': __builtins__}, local_vars)</code></pre>
+  </section>
+
+  <section class="safety">
+    <h2>Safe demonstration boundary</h2>
+    <p>The supplied checker accepts only <code>localhost</code> and loopback IP addresses. Its payload performs the calculation <code>7 × 6</code> and returns a fixed marker. It does not invoke a shell, access files, collect secrets, persist data, or change application state.</p>
+  </section>
+
+  <section>
+    <h2>Run the proof of concept</h2>
+    <ol>
+      <li>From the repository root, start the training app on loopback only:</li>
+    </ol>
+    <pre><code>flask --app run:app run --host 127.0.0.1 --port 5000 --no-debugger --no-reload</code></pre>
+    <ol start="2">
+      <li>In a second terminal, run the checker:</li>
+    </ol>
+    <pre><code>python poc/critical-rce-poc.py</code></pre>
+  </section>
+
+  <section class="result">
+    <h2>Observed local verification</h2>
+    <pre><code>Target: http://127.0.0.1:5000/api/debug/execute
+Authentication: none
+Payload: result = 'VULNAPI_RCE_CONFIRMED:' + str(7 * 6)
+HTTP status: 200
+Returned result: VULNAPI_RCE_CONFIRMED:42
+PASS: unauthenticated server-side Python execution confirmed.</code></pre>
+    <p>This output was recorded from VulnAPI-101 1.0.0 running on <code>127.0.0.1</code>. The marker can only appear in this response if the server evaluates the supplied Python statement and returns its <code>result</code> variable.</p>
+  </section>
+
+  <section>
+    <h2>Remediation</h2>
+    <p>Remove the execution endpoints and do not register the debug blueprint outside an isolated training environment. Authentication alone is not an adequate control for arbitrary code execution. Add a regression test that verifies <code>/api/debug/execute</code> and <code>/api/debug/eval</code> are absent from deployable builds.</p>
+  </section>
+</main>
+</body>
+</html>
